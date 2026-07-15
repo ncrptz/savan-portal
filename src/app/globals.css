@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+:root {
+  --savan-navy:  #000066;
+  --savan-red:   #8B1A1A;
+  --savan-cream: #FFFFCC;
+  --savan-gold:  #C4A84A;
+}
