@@ -10,7 +10,7 @@ export async function updateSession(request: NextRequest) {
     {
       cookies: {
         getAll() { return request.cookies.getAll() },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: { name: string; value: string; options?: any }[]) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
@@ -23,11 +23,10 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Protected route groups
-  const isAdminRoute    = request.nextUrl.pathname.startsWith('/admin')
-  const isTraineeRoute  = request.nextUrl.pathname.startsWith('/trainee')
-  const isOrgRoute      = request.nextUrl.pathname.startsWith('/org')
-  const isAuthRoute     = request.nextUrl.pathname.startsWith('/auth')
+  const isAdminRoute   = request.nextUrl.pathname.startsWith('/admin')
+  const isTraineeRoute = request.nextUrl.pathname.startsWith('/trainee')
+  const isOrgRoute     = request.nextUrl.pathname.startsWith('/org')
+  const isAuthRoute    = request.nextUrl.pathname.startsWith('/auth')
 
   if (!user && (isAdminRoute || isTraineeRoute || isOrgRoute)) {
     const url = request.nextUrl.clone()
