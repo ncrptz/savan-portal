@@ -55,8 +55,70 @@ export async function POST(req: NextRequest) {
 
   const collabLogo = form.get('collab_logo') as File | null
   const collabSig  = form.get('collab_sig')  as File | null
-  if (collabLogo) renderForm.append('collab_logo', collabLogo)
-  if (collabSig)  renderForm.append('collab_sig',  collabSig)
+
+  // Load any logo/signature already saved on this event (or its organisation),
+  // so repeat batches don't need a re-upload.
+  let eventRow: any = null
+  if (templateType === 'T2') {
+    const { data } = await adminSupabase
+      .from('training_events')
+      .select('collab_logo_url, collab_sig_url, organisation:organisations(logo_url)')
+      .eq('id', eventId)
+      .single()
+    eventRow = data
+  }
+
+  // Resolve one collaborator asset: a freshly uploaded file is used AND saved
+  // to storage + the event row; otherwise fall back to the saved/org URL.
+  async function resolveAsset(
+    uploaded: File | null,
+    savedUrl: string | null | undefined,
+    orgUrl: string | null | undefined,
+    kind: 'logo' | 'sig',
+    urlColumn: 'collab_logo_url' | 'collab_sig_url',
+  ): Promise<{ blob: Blob; filename: string } | null> {
+    if (uploaded && uploaded.size > 0) {
+      const ext  = (uploaded.name.split('.').pop() || 'png').toLowerCase()
+      const type = uploaded.type || 'image/png'
+      const buf  = Buffer.from(await uploaded.arrayBuffer())
+      const path = `events/${eventId}/${kind}.${ext}`
+      const { error: upErr } = await adminSupabase.storage
+        .from('logos').upload(path, buf, { contentType: type, upsert: true })
+      if (!upErr) {
+        const { data: pub } = adminSupabase.storage.from('logos').getPublicUrl(path)
+        if (pub?.publicUrl) {
+          await adminSupabase.from('training_events')
+            .update({ [urlColumn]: pub.publicUrl }).eq('id', eventId)
+        }
+      }
+      return { blob: new Blob([buf], { type }), filename: `${kind}.${ext}` }
+    }
+    const url = savedUrl || (kind === 'logo' ? orgUrl : null)
+    if (url) {
+      try {
+        const r = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+        if (r.ok) {
+          const ab = await r.arrayBuffer()
+          return { blob: new Blob([ab], { type: r.headers.get('content-type') || 'image/png' }),
+                   filename: `${kind}.png` }
+        }
+      } catch { /* fall back to no asset */ }
+    }
+    return null
+  }
+
+  if (templateType === 'T2') {
+    const logo = await resolveAsset(collabLogo, eventRow?.collab_logo_url,
+                                    eventRow?.organisation?.logo_url, 'logo', 'collab_logo_url')
+    if (logo) renderForm.append('collab_logo', logo.blob, logo.filename)
+    const sig = await resolveAsset(collabSig, eventRow?.collab_sig_url,
+                                   null, 'sig', 'collab_sig_url')
+    if (sig) renderForm.append('collab_sig', sig.blob, sig.filename)
+  } else {
+    if (collabLogo) renderForm.append('collab_logo', collabLogo)
+    if (collabSig)  renderForm.append('collab_sig',  collabSig)
+  }
+
   participants.forEach((_: any, i: number) => {
     const photo = form.get(`photo_${i}`) as File | null
     if (photo) renderForm.append(`photo_${i}`, photo)
