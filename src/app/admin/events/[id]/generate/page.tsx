@@ -1,6 +1,7 @@
 'use client'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 import {
   Upload, User, Camera, PenLine, Building2,
@@ -86,6 +87,8 @@ export default function GeneratePage() {
   const [collabSignerTitle, setCollabSignerTitle] = useState('')
   const [collabSigImage, setCollabSigImage]       = useState<File | null>(null)
   const [collabSigPreview, setCollabSigPreview]   = useState('')
+  const [savedLogo, setSavedLogo] = useState(false)
+  const [savedSig, setSavedSig]   = useState(false)
   const [participants, setParticipants] = useState<ParticipantRow[]>([
     { id: uid(), name: '', date: '' }
   ])
@@ -94,6 +97,31 @@ export default function GeneratePage() {
   const [generating, setGenerating]       = useState(false)
   const [results, setResults]             = useState<IssuedCert[]>([])
   const [error, setError]                 = useState('')
+
+  // Load the event this generate screen belongs to, so the template and
+  // collaborator details are pre-filled (and the T2 fields actually appear).
+  useEffect(() => {
+    if (!eventId) return
+    const supabase = createClient()
+    supabase
+      .from('training_events')
+      .select('template_type, year, month, session_in_month, training_date, sponsored_by, collab_signer_name, collab_signer_title, collab_logo_url, collab_sig_url')
+      .eq('id', eventId)
+      .single()
+      .then(({ data }) => {
+        if (!data) return
+        setTemplateType((data.template_type as TemplateType) || 'T1')
+        if (data.year)             setYear(data.year)
+        if (data.month)            setMonth(data.month)
+        if (data.session_in_month) setSession(data.session_in_month)
+        if (data.training_date)    setBatchDate(String(data.training_date).split('T')[0])
+        setSponsoredBy(data.sponsored_by || '')
+        setCollabSignerName(data.collab_signer_name || '')
+        setCollabSignerTitle(data.collab_signer_title || '')
+        if (data.collab_logo_url) { setCollabLogoPreview(data.collab_logo_url); setSavedLogo(true) }
+        if (data.collab_sig_url)  { setCollabSigPreview(data.collab_sig_url);   setSavedSig(true) }
+      })
+  }, [eventId])
 
   const previewId = buildCertId(year, month, session, startSeq)
 
@@ -245,6 +273,7 @@ export default function GeneratePage() {
                 if (f) { setCollabLogo(f); setCollabLogoPreview(URL.createObjectURL(f)) }
               }} className="input text-sm py-1.5" />
               {collabLogoPreview && <img src={collabLogoPreview} alt="" className="mt-2 h-16 object-contain" />}
+              {savedLogo && !collabLogo && <p className="text-xs text-green-700 mt-1">Saved logo will be used — choose a file only to replace it.</p>}
             </div>
             <div>
               <label className="label">Collaborator signature <span className="text-gray-400">(optional PNG)</span></label>
@@ -253,6 +282,7 @@ export default function GeneratePage() {
                 if (f) { setCollabSigImage(f); setCollabSigPreview(URL.createObjectURL(f)) }
               }} className="input text-sm py-1.5" />
               {collabSigPreview && <img src={collabSigPreview} alt="" className="mt-2 h-12 object-contain" />}
+              {savedSig && !collabSigImage && <p className="text-xs text-green-700 mt-1">Saved signature will be used — choose a file only to replace it.</p>}
             </div>
             <div>
               <label className="label">Signatory name</label>
