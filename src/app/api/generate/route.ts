@@ -23,7 +23,6 @@ export async function POST(req: NextRequest) {
   const year          = parseInt(form.get('year') as string)
   const month         = parseInt(form.get('month') as string)
   const session       = parseInt(form.get('session') as string)
-  const startSeq      = parseInt(form.get('start_seq') as string)
   const sponsoredBy   = (form.get('sponsored_by') as string) || ''
   const collabName    = (form.get('collab_signer_name') as string) || ''
   const collabTitle   = (form.get('collab_signer_title') as string) || ''
@@ -41,6 +40,16 @@ export async function POST(req: NextRequest) {
     // Continue even if health check times out
   }
 
+  // Server-authoritative sequence: continue numbering from certificates already
+  // issued for this event, so a repeat batch never reuses a cert_id. Reusing one
+  // would overwrite the stored PDF at the same path and collapse the rows. The
+  // client start_seq is only a preview hint and is not trusted here.
+  const { count: issuedSoFar } = await adminSupabase
+    .from('certificates')
+    .select('id', { count: 'exact', head: true })
+    .eq('event_id', eventId)
+  const seqBase = issuedSoFar ?? 0
+
   // Build render form
   const renderForm = new FormData()
   renderForm.append('params', JSON.stringify({
@@ -49,7 +58,7 @@ export async function POST(req: NextRequest) {
     collab_signer_name:   collabName,
     collab_signer_title:  collabTitle,
     participants: participants.map((p: any, i: number) => ({
-      name: p.name, year, month, session, seq: startSeq + i, date: p.date,
+      name: p.name, year, month, session, seq: seqBase + i + 1, date: p.date,
     })),
   }))
 
