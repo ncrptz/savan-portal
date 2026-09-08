@@ -89,6 +89,7 @@ export default function GeneratePage() {
   const [collabSigPreview, setCollabSigPreview]   = useState('')
   const [savedLogo, setSavedLogo] = useState(false)
   const [savedSig, setSavedSig]   = useState(false)
+  const [dupWarning, setDupWarning] = useState<string[]>([])
   const [participants, setParticipants] = useState<ParticipantRow[]>([
     { id: uid(), name: '', date: '' }
   ])
@@ -163,9 +164,25 @@ export default function GeneratePage() {
     e.target.value = ''
   }
 
-  async function handleGenerate() {
+  async function handleGenerate(force = false) {
     const valid = participants.filter(p => p.name.trim())
     if (!valid.length) { setError('Add at least one participant name.'); return }
+
+    // Warn if any of these names already holds a certificate in this event.
+    if (!force) {
+      const supabase = createClient()
+      const { data: existing } = await supabase
+        .from('certificates')
+        .select('trainee_name')
+        .eq('event_id', eventId)
+      const have = new Set((existing ?? []).map((c: any) => (c.trainee_name || '').trim().toLowerCase()))
+      const dups = Array.from(new Set(
+        valid.map(p => p.name.trim()).filter(n => have.has(n.toLowerCase()))
+      ))
+      if (dups.length) { setDupWarning(dups); return }
+    }
+
+    setDupWarning([])
     setGenerating(true); setError(''); setResults([])
 
     try {
@@ -216,6 +233,29 @@ export default function GeneratePage() {
         <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
           {error}
+        </div>
+      )}
+
+      {dupWarning.length > 0 && (
+        <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-300 rounded-lg text-amber-800 text-sm">
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium">
+              {dupWarning.length === 1 ? 'This name already has' : 'These names already have'} a certificate in this event:
+            </p>
+            <p className="mt-1 font-semibold">{dupWarning.join(', ')}</p>
+            <p className="mt-1 text-amber-700">Generating again will issue an additional certificate with a new ID.</p>
+            <div className="flex gap-3 mt-3">
+              <button onClick={() => handleGenerate(true)}
+                className="px-4 py-1.5 rounded-lg bg-amber-600 text-white text-sm hover:bg-amber-700">
+                Generate anyway
+              </button>
+              <button onClick={() => setDupWarning([])}
+                className="px-4 py-1.5 rounded-lg border border-gray-300 text-gray-600 text-sm hover:bg-gray-50">
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -392,7 +432,7 @@ export default function GeneratePage() {
 
       {/* Generate button */}
       <div className="flex gap-4">
-        <button onClick={handleGenerate} disabled={generating}
+        <button onClick={() => handleGenerate()} disabled={generating}
           className="btn-primary px-8 py-3 text-base flex items-center gap-2">
           {generating
             ? <><span className="animate-spin inline-block">⟳</span> Generating…</>
