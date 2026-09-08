@@ -121,6 +121,12 @@ export default function GeneratePage() {
         if (data.collab_logo_url) { setCollabLogoPreview(data.collab_logo_url); setSavedLogo(true) }
         if (data.collab_sig_url)  { setCollabSigPreview(data.collab_sig_url);   setSavedSig(true) }
       })
+    // Preview the next sequence number so it matches what the server will assign.
+    supabase
+      .from('certificates')
+      .select('id', { count: 'exact', head: true })
+      .eq('event_id', eventId)
+      .then(({ count }) => { if (typeof count === 'number') setStartSeq(count + 1) })
   }, [eventId])
 
   const previewId = buildCertId(year, month, session, startSeq)
