@@ -99,9 +99,9 @@ export default function NewEventPage() {
           </select>
         </div>
 
-        {form.template_type === 'T1' && (
+        {(
           <div>
-            <label className="label">Sponsored by <span className="text-gray-400">(optional)</span></label>
+            <label className="label">Sponsored by <span className="text-gray-400">(optional — third-party sponsor)</span></label>
             <input className="input" value={form.sponsored_by}
               onChange={e=>set('sponsored_by',e.target.value)}
               placeholder="e.g. Okomu Oil Palm Company Plc" />
