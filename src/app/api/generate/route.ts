@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createHmac, randomUUID } from 'crypto'
 
 export const maxDuration = 60
 
@@ -32,6 +33,10 @@ export async function POST(req: NextRequest) {
   if (!renderUrl) {
     return NextResponse.json({ error: 'RENDER_API_URL not configured' }, { status: 500 })
   }
+  const signingSecret = process.env.CERT_SIGNING_SECRET
+  if (!signingSecret) {
+    return NextResponse.json({ error: 'CERT_SIGNING_SECRET not configured' }, { status: 500 })
+  }
 
   // Wake up Render service first (free tier spins down)
   try {
@@ -40,15 +45,16 @@ export async function POST(req: NextRequest) {
     // Continue even if health check times out
   }
 
-  // Server-authoritative sequence: continue numbering from certificates already
-  // issued for this event, so a repeat batch never reuses a cert_id. Reusing one
-  // would overwrite the stored PDF at the same path and collapse the rows. The
-  // client start_seq is only a preview hint and is not trusted here.
-  const { count: issuedSoFar } = await adminSupabase
-    .from('certificates')
-    .select('id', { count: 'exact', head: true })
-    .eq('event_id', eventId)
-  const seqBase = issuedSoFar ?? 0
+  // Reserve a contiguous block of numbers for this batch in one atomic step.
+  // A number, once reserved, is never reused — even across deletes/revocations.
+  const { data: firstSeq, error: seqErr } = await adminSupabase
+    .rpc('next_cert_seq_block', { p_event_id: eventId, p_n: participants.length })
+  if (seqErr || typeof firstSeq !== 'number') {
+    return NextResponse.json(
+      { error: `Certificate numbering failed: ${seqErr?.message || 'no sequence returned'}` },
+      { status: 500 })
+  }
+  const seqBase = firstSeq - 1  // participant i (0-based) → firstSeq + i
 
   // Build render form
   const renderForm = new FormData()
@@ -176,14 +182,21 @@ export async function POST(req: NextRequest) {
       .upsert({ full_name: cert.name, email: '' }, { onConflict: 'full_name' })
       .select('id').single()
 
-    await adminSupabase.from('certificates').upsert({
+    const verifyToken = randomUUID()
+    const signature = createHmac('sha256', signingSecret)
+      .update(`${cert.cert_id}|${cert.name}|${eventId}|${verifyToken}`)
+      .digest('base64')
+
+    await adminSupabase.from('certificates').insert({
       cert_id:      cert.cert_id,
       event_id:     eventId,
       trainee_id:   trainee?.id ?? null,
       trainee_name: cert.name,
       issued_at:    cert.date,
       pdf_url:      urlData?.publicUrl || '',
-    }, { onConflict: 'cert_id' })
+      verify_token: verifyToken,
+      signature,
+    })
 
     issued.push({ cert_id: cert.cert_id, name: cert.name, pdf_url: urlData?.publicUrl || '' })
   }
