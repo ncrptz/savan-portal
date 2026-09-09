@@ -13,11 +13,12 @@ export default function NewEventPage() {
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
     session_in_month: 1,
+    is_test: false,
   })
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
 
-  function set(field: string, value: string | number) {
+  function set(field: string, value: string | number | boolean) {
     setForm(f => ({ ...f, [field]: value }))
   }
 
@@ -130,6 +131,14 @@ export default function NewEventPage() {
             </p>
           </div>
         )}
+
+        <label className="flex items-center gap-2 pt-2 cursor-pointer select-none">
+          <input type="checkbox" checked={form.is_test}
+            onChange={e=>set('is_test', e.target.checked)} className="w-4 h-4" />
+          <span className="text-sm text-gray-600">
+            This is a <strong>test event</strong> — its certificates can be wiped by a superadmin reset and never mix with real records.
+          </span>
+        </label>
 
         <div className="flex gap-3 pt-2">
           <button type="submit" disabled={saving} className="btn-primary px-8">
