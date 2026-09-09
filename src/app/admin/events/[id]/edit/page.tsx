@@ -15,6 +15,7 @@ interface EventForm {
   year: number
   month: number
   session_in_month: number
+  is_test: boolean
 }
 
 const EMPTY: EventForm = {
@@ -24,6 +25,7 @@ const EMPTY: EventForm = {
   year: new Date().getFullYear(),
   month: new Date().getMonth() + 1,
   session_in_month: 1,
+  is_test: false,
 }
 
 export default function EditEventPage() {
@@ -40,7 +42,7 @@ export default function EditEventPage() {
     const supabase = createClient()
     supabase
       .from('training_events')
-      .select('title, training_date, venue, template_type, sponsored_by, collab_signer_name, collab_signer_title, year, month, session_in_month')
+      .select('title, training_date, venue, template_type, sponsored_by, collab_signer_name, collab_signer_title, year, month, session_in_month, is_test')
       .eq('id', eventId)
       .single()
       .then(({ data, error: err }) => {
@@ -57,13 +59,14 @@ export default function EditEventPage() {
             year: data.year ?? EMPTY.year,
             month: data.month ?? EMPTY.month,
             session_in_month: data.session_in_month ?? 1,
+            is_test: data.is_test ?? false,
           })
         }
         setLoading(false)
       })
   }, [eventId])
 
-  function set(field: keyof EventForm, value: string | number) {
+  function set(field: keyof EventForm, value: string | number | boolean) {
     setForm(f => ({ ...f, [field]: value }))
   }
 
@@ -84,6 +87,7 @@ export default function EditEventPage() {
         year: form.year,
         month: form.month,
         session_in_month: form.session_in_month,
+        is_test: form.is_test,
       })
       .eq('id', eventId)
 
@@ -185,6 +189,14 @@ export default function EditEventPage() {
             </p>
           </div>
         )}
+
+        <label className="flex items-center gap-2 pt-2 cursor-pointer select-none">
+          <input type="checkbox" checked={form.is_test}
+            onChange={e=>set('is_test', e.target.checked)} className="w-4 h-4" />
+          <span className="text-sm text-gray-600">
+            This is a <strong>test event</strong> — eligible for the superadmin test-data reset.
+          </span>
+        </label>
 
         <div className="flex gap-3 pt-2">
           <button type="submit" disabled={saving} className="btn-primary px-8">
