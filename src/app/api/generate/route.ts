@@ -194,6 +194,7 @@ export async function POST(req: NextRequest) {
       trainee_name: cert.name,
       issued_at:    cert.date,
       pdf_url:      urlData?.publicUrl || '',
+      seq:          parseInt(String(cert.cert_id).split('/').pop() || '') || null,
       verify_token: verifyToken,
       signature,
     })
