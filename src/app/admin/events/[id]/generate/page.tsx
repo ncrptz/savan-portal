@@ -297,13 +297,13 @@ export default function GeneratePage() {
       </Section>
 
       {/* T1 Sponsor */}
-      {templateType === 'T1' && (
+      {(
         <Section title="Sponsor (optional)" icon={<Building2 className="w-5 h-5" />}>
           <div>
             <label className="label">Sponsored by / Promoted by</label>
             <input type="text" value={sponsoredBy} onChange={e => setSponsoredBy(e.target.value)}
               className="input" placeholder="e.g. Okomu Oil Palm Company Plc" />
-            <p className="text-xs text-gray-400 mt-1">Leave blank to omit.</p>
+            <p className="text-xs text-gray-400 mt-1">Leave blank to omit. Works on both templates.</p>
           </div>
         </Section>
       )}
