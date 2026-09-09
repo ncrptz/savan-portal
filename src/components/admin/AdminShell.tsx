@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import {
   Shield, LayoutDashboard, Calendar, Award,
-  Building2, Users, BookOpen, LogOut, Menu, X, ChevronRight, Wrench
+  Building2, Users, BookOpen, LogOut, Menu, X, ChevronRight, Wrench, ClipboardCheck
 } from 'lucide-react'
 
 const nav = [
@@ -45,10 +45,14 @@ export default function AdminShell({
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {(role === 'superadmin'
-          ? [...nav, { href: '/admin/maintenance', label: 'Maintenance', icon: Wrench }]
-          : nav
-        ).map(item => {
+        {(() => {
+          const items = [...nav]
+          if (role === 'admin1' || role === 'superadmin')
+            items.push({ href: '/admin/approvals', label: 'Approvals', icon: ClipboardCheck })
+          if (role === 'superadmin')
+            items.push({ href: '/admin/maintenance', label: 'Maintenance', icon: Wrench })
+          return items
+        })().map(item => {
           const active = pathname === item.href ||
             (item.href !== '/admin' && pathname.startsWith(item.href))
           return (
