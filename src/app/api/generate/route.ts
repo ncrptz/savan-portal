@@ -56,6 +56,11 @@ export async function POST(req: NextRequest) {
   }
   const seqBase = firstSeq - 1  // participant i (0-based) → firstSeq + i
 
+  // A verify token per participant, generated up front so it can be embedded in
+  // the QR at render time and stored on the certificate row afterwards.
+  const tokens: string[] = participants.map(() => randomUUID())
+  const verifyBaseUrl = process.env.NEXT_PUBLIC_VERIFY_BASE_URL || ''
+
   // Build render form
   const renderForm = new FormData()
   renderForm.append('params', JSON.stringify({
@@ -63,8 +68,9 @@ export async function POST(req: NextRequest) {
     sponsored_by:         sponsoredBy,
     collab_signer_name:   collabName,
     collab_signer_title:  collabTitle,
+    verify_base_url:      verifyBaseUrl,
     participants: participants.map((p: any, i: number) => ({
-      name: p.name, year, month, session, seq: seqBase + i + 1, date: p.date,
+      name: p.name, year, month, session, seq: seqBase + i + 1, date: p.date, token: tokens[i],
     })),
   }))
 
@@ -134,10 +140,25 @@ export async function POST(req: NextRequest) {
     if (collabSig)  renderForm.append('collab_sig',  collabSig)
   }
 
-  participants.forEach((_: any, i: number) => {
+  // Attach photos to the render request AND persist each so the verification
+  // page can show it. Index-aligned with participants.
+  const photoUrls: (string | null)[] = participants.map(() => null)
+  for (let i = 0; i < participants.length; i++) {
     const photo = form.get(`photo_${i}`) as File | null
-    if (photo) renderForm.append(`photo_${i}`, photo)
-  })
+    if (!photo) continue
+    renderForm.append(`photo_${i}`, photo)
+    try {
+      const ext  = (photo.name.split('.').pop() || 'jpg').toLowerCase()
+      const pbuf = Buffer.from(await photo.arrayBuffer())
+      const ppath = `events/${eventId}/photo_${seqBase + i + 1}.${ext}`
+      const { error: pe } = await adminSupabase.storage
+        .from('photos').upload(ppath, pbuf, { contentType: photo.type || 'image/jpeg', upsert: true })
+      if (!pe) {
+        const { data: pu } = adminSupabase.storage.from('photos').getPublicUrl(ppath)
+        photoUrls[i] = pu?.publicUrl || null
+      }
+    } catch { /* photo persistence is best-effort */ }
+  }
 
   // Call Render service
   let renderResult: any
@@ -182,7 +203,10 @@ export async function POST(req: NextRequest) {
       .upsert({ full_name: cert.name, email: '' }, { onConflict: 'full_name' })
       .select('id').single()
 
-    const verifyToken = randomUUID()
+    const seqNum = parseInt(String(cert.cert_id).split('/').pop() || '') || 0
+    const idx = seqNum - firstSeq            // 0-based participant index
+    const verifyToken = (idx >= 0 && idx < tokens.length) ? tokens[idx] : randomUUID()
+    const photoUrl    = (idx >= 0 && idx < photoUrls.length) ? photoUrls[idx] : null
     const signature = createHmac('sha256', signingSecret)
       .update(`${cert.cert_id}|${cert.name}|${eventId}|${verifyToken}`)
       .digest('base64')
@@ -194,7 +218,8 @@ export async function POST(req: NextRequest) {
       trainee_name: cert.name,
       issued_at:    cert.date,
       pdf_url:      urlData?.publicUrl || '',
-      seq:          parseInt(String(cert.cert_id).split('/').pop() || '') || null,
+      photo_url:    photoUrl,
+      seq:          seqNum || null,
       verify_token: verifyToken,
       signature,
     })
