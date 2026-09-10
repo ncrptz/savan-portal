@@ -26,6 +26,7 @@ export default function RegisterPage() {
     const { error: err } = await supabase.auth.signUp({
       email, password,
       options: {
+        emailRedirectTo: `${window.location.origin}/api/auth/callback`,
         data: {
           full_name: type === 'organisation' ? orgName : fullName,
           role: type,
