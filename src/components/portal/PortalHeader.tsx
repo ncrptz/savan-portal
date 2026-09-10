@@ -1,7 +1,8 @@
 'use client'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { Shield, LogOut } from 'lucide-react'
+import Link from 'next/link'
+import { Shield, LogOut, UserCog } from 'lucide-react'
 
 export default function PortalHeader({ name }: { name: string }) {
   const router = useRouter()
@@ -21,6 +22,9 @@ export default function PortalHeader({ name }: { name: string }) {
         </div>
         <div className="flex items-center gap-4 text-sm">
           {name && <span className="text-blue-200 hidden sm:inline">{name}</span>}
+          <Link href="/profile" className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
+            <UserCog className="w-4 h-4" /> Profile
+          </Link>
           <button onClick={signOut} className="flex items-center gap-1.5 hover:text-blue-200 transition-colors">
             <LogOut className="w-4 h-4" /> Sign out
           </button>
