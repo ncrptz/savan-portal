@@ -25,7 +25,17 @@ export async function GET(request: Request) {
     )
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}`)
+      let dest = next
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: p } = await supabase.from('profiles').select('role').eq('user_id', user.id).single()
+        const role = p?.role
+        if (role === 'trainee')            dest = '/trainee?welcome=1'
+        else if (role === 'organisation')  dest = '/org?welcome=1'
+        else if (['superadmin','admin1','admin2'].includes(role)) dest = '/admin'
+        else                               dest = '/trainee?welcome=1'
+      }
+      return NextResponse.redirect(`${origin}${dest}`)
     }
   }
 
