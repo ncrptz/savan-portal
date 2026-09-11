@@ -1,4 +1,5 @@
 'use client'
+import { formatCertDate } from '@/lib/date'
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -130,9 +131,7 @@ function VerifyContent() {
                 <Row label="Certificate ID"  value={cert.cert_id} mono />
                 <Row label="Recipient Name"  value={cert.trainee_name} />
                 <Row label="Date Issued"
-                  value={new Date(cert.issued_at).toLocaleDateString('en-GB', {
-                    day:'numeric', month:'long', year:'numeric'
-                  })} />
+                  value={formatCertDate(cert.issued_at)} />
                 <Row label="Training"  value="Basic Life Support & AED" />
                 <Row label="Issued By" value="Save Accident Victims Association of Nigeria (SAVAN)" />
                 {cert.event?.venue && <Row label="Venue" value={cert.event.venue} />}
