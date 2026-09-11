@@ -1,3 +1,4 @@
+import { formatCertDate } from '@/lib/date'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PortalHeader from '@/components/portal/PortalHeader'
@@ -45,7 +46,7 @@ export default async function TraineePortal(
                   <p className="font-mono text-xs text-gray-500">{c.cert_id}</p>
                   <p className="font-medium text-gray-900">{c.event?.title ?? 'BLS & AED Certification'}</p>
                   <p className="text-xs text-gray-400 mt-0.5">
-                    {c.issued_at && new Date(c.issued_at).toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })}
+                    {c.issued_at && formatCertDate(c.issued_at)}
                     {c.status !== 'active' && <span className="ml-2 text-red-600 font-medium">Revoked</span>}
                   </p>
                 </div>
