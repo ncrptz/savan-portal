@@ -1,4 +1,5 @@
 'use client'
+import { formatCertDate } from '@/lib/date'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Award, ExternalLink } from 'lucide-react'
@@ -109,7 +110,7 @@ export default function CertificatesPage() {
                   <td className="px-4 py-3 text-gray-500">{c.event?.title ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
                     {c.issued_at
-                      ? new Date(c.issued_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                      ? formatCertDate(c.issued_at, true)
                       : '—'}
                   </td>
                   <td className="px-4 py-3">{statusBadge(c.status)}</td>
