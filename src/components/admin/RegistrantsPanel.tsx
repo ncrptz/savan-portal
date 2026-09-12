@@ -1,9 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Users, Check, DoorOpen, DoorClosed, Award } from 'lucide-react'
+import { Users, Check, DoorOpen, DoorClosed, Award, UserPlus, Link2 } from 'lucide-react'
 
-interface Reg { id: string; training_id: string; full_name: string; status: string; created_at: string }
+interface Reg { id: string; training_id: string; full_name: string; status: string; user_id: string | null; created_at: string }
 
 export default function RegistrantsPanel(
   { eventId, registrationOpen }: { eventId: string; registrationOpen: boolean }
@@ -16,10 +16,13 @@ export default function RegistrantsPanel(
   const [msg, setMsg]     = useState('')
   const [err, setErr]     = useState('')
   const [genErrors, setGenErrors] = useState<{ name: string; error: string }[]>([])
+  const [showAdd, setShowAdd] = useState(false)
+  const [addName, setAddName] = useState('')
+  const [addEmail, setAddEmail] = useState('')
 
   async function load(preselectTrained = false) {
     const { data } = await createClient().from('event_registrations')
-      .select('id, training_id, full_name, status, created_at')
+      .select('id, training_id, full_name, status, user_id, created_at')
       .eq('event_id', eventId).order('created_at')
     const rows: Reg[] = (data as any) ?? []
     setRegs(rows)
@@ -41,6 +44,16 @@ export default function RegistrantsPanel(
     const n = new Set(sel); n.has(id) ? n.delete(id) : n.add(id); setSel(n)
   }
 
+  async function addWalkIn() {
+    if (!addName.trim()) return
+    setBusy(true); setErr(''); setMsg(''); setGenErrors([])
+    const { error } = await createClient().rpc('admin_create_registration',
+      { p_event_id: eventId, p_full_name: addName.trim(), p_email: addEmail.trim() || null })
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    setAddName(''); setAddEmail(''); setShowAdd(false); setMsg('Participant added.'); await load(true)
+  }
+
   async function confirmTrained(ids: string[]) {
     if (!ids.length) return
     setBusy(true); setErr(''); setMsg(''); setGenErrors([])
@@ -58,6 +71,16 @@ export default function RegistrantsPanel(
     setBusy(false)
     if (error) { setErr(error.message); return }
     setMsg('Reverted to scheduled.'); await load(true)
+  }
+
+  async function copyClaimLink(id: string) {
+    setBusy(true); setErr(''); setMsg(''); setGenErrors([])
+    const { data, error } = await createClient().rpc('admin_issue_claim_token', { p_registration_id: id })
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    const url = `${window.location.origin}/claim?token=${data}`
+    try { await navigator.clipboard.writeText(url); setMsg('Claim link copied to clipboard: ' + url) }
+    catch { setMsg('Claim link: ' + url) }
   }
 
   async function generate(ids: string[]) {
@@ -111,13 +134,33 @@ export default function RegistrantsPanel(
           <Users className="w-5 h-5" />
           <h2 className="font-semibold text-gray-900">Registrants ({regs.length})</h2>
         </div>
-        <button onClick={toggleOpen} disabled={busy}
-          className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border ${
-            open ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-          {open ? <><DoorOpen className="w-4 h-4" />Registration open</>
-                : <><DoorClosed className="w-4 h-4" />Registration closed</>}
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowAdd(!showAdd)}
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">
+            <UserPlus className="w-4 h-4" />Add participant
+          </button>
+          <button onClick={toggleOpen} disabled={busy}
+            className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg border ${
+              open ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+            {open ? <><DoorOpen className="w-4 h-4" />Registration open</>
+                  : <><DoorClosed className="w-4 h-4" />Registration closed</>}
+          </button>
+        </div>
       </div>
+
+      {showAdd && (
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[180px]">
+            <label className="label">Full name</label>
+            <input className="input" value={addName} onChange={e => setAddName(e.target.value)} placeholder="Participant name" />
+          </div>
+          <div className="flex-1 min-w-[180px]">
+            <label className="label">Email <span className="text-gray-400">(optional)</span></label>
+            <input className="input" value={addEmail} onChange={e => setAddEmail(e.target.value)} placeholder="name@example.com" />
+          </div>
+          <button onClick={addWalkIn} disabled={busy || !addName.trim()} className="btn-primary px-5 py-2">Add</button>
+        </div>
+      )}
 
       {(selScheduled.length > 0 || selTrained.length > 0) && (
         <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -138,7 +181,7 @@ export default function RegistrantsPanel(
         </div>
       )}
       {busy && <p className="text-xs text-gray-400 mb-2">Working… certificate generation can take up to a minute.</p>}
-      {msg && <p className="text-sm text-green-700 mb-2">{msg}</p>}
+      {msg && <p className="text-sm text-green-700 mb-2 break-all">{msg}</p>}
       {err && <p className="text-sm text-red-600 mb-2">{err}</p>}
       {genErrors.length > 0 && (
         <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm">
@@ -155,9 +198,7 @@ export default function RegistrantsPanel(
         <div className="text-center py-8">
           <Users className="w-10 h-10 text-gray-200 mx-auto mb-2" />
           <p className="text-gray-400 text-sm">
-            No registrants yet.{open
-              ? ' Registration is open — share the event so people can sign up.'
-              : ' Open registration to let people sign up.'}
+            No registrants yet. Use <strong>Add participant</strong> for walk-ins, or open registration for sign-ups.
           </p>
         </div>
       ) : (
@@ -168,7 +209,7 @@ export default function RegistrantsPanel(
               <th className="py-2 px-2 font-medium">Training ID</th>
               <th className="py-2 px-2 font-medium">Name</th>
               <th className="py-2 px-2 font-medium">Status</th>
-              <th className="py-2 px-2 font-medium text-right">Action</th>
+              <th className="py-2 px-2 font-medium text-right">Actions</th>
             </tr></thead>
             <tbody>
               {regs.map(r => (
@@ -180,14 +221,20 @@ export default function RegistrantsPanel(
                   <td className="py-2 px-2 font-mono text-xs text-gray-600">{r.training_id}</td>
                   <td className="py-2 px-2 text-gray-900">{r.full_name}</td>
                   <td className="py-2 px-2">{badge(r.status)}</td>
-                  <td className="py-2 px-2 text-right">
+                  <td className="py-2 px-2 text-right whitespace-nowrap">
                     {r.status === 'scheduled' && (
                       <button onClick={() => confirmTrained([r.id])} disabled={busy}
-                        className="text-[#000066] hover:underline text-xs">Confirm trained</button>
+                        className="text-[#000066] hover:underline text-xs mr-3">Confirm trained</button>
                     )}
                     {r.status === 'trained' && (
                       <button onClick={() => unconfirm(r.id)} disabled={busy}
-                        className="text-gray-500 hover:text-red-600 hover:underline text-xs">Undo</button>
+                        className="text-gray-500 hover:text-red-600 hover:underline text-xs mr-3">Undo</button>
+                    )}
+                    {!r.user_id && (
+                      <button onClick={() => copyClaimLink(r.id)} disabled={busy}
+                        className="text-gray-500 hover:text-[#000066] text-xs inline-flex items-center gap-1">
+                        <Link2 className="w-3 h-3" />Claim link
+                      </button>
                     )}
                   </td>
                 </tr>
