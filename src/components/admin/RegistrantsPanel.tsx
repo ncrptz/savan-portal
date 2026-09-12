@@ -50,6 +50,14 @@ export default function RegistrantsPanel(
     setBusy(false); setSel(new Set()); setMsg(`Marked ${ids.length} as trained.`); await load()
   }
 
+  async function unconfirm(id: string) {
+    setBusy(true); setErr(''); setMsg('')
+    const { error } = await createClient().rpc('unconfirm_trained', { p_registration_id: id })
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    setMsg('Reverted to scheduled.'); await load()
+  }
+
   const scheduledSel = Array.from(sel).filter(id => regs.find(r => r.id === id)?.status === 'scheduled')
 
   const badge = (st: string) =>
@@ -119,6 +127,10 @@ export default function RegistrantsPanel(
                     {r.status === 'scheduled' && (
                       <button onClick={() => confirmTrained([r.id])} disabled={busy}
                         className="text-[#000066] hover:underline text-xs">Confirm trained</button>
+                    )}
+                    {r.status === 'trained' && (
+                      <button onClick={() => unconfirm(r.id)} disabled={busy}
+                        className="text-gray-500 hover:text-red-600 hover:underline text-xs">Undo</button>
                     )}
                   </td>
                 </tr>
