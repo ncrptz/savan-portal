@@ -211,18 +211,28 @@ export async function POST(req: NextRequest) {
       .update(`${cert.cert_id}|${cert.name}|${eventId}|${verifyToken}`)
       .digest('base64')
 
-    await adminSupabase.from('certificates').insert({
-      cert_id:      cert.cert_id,
-      event_id:     eventId,
-      trainee_id:   trainee?.id ?? null,
-      trainee_name: cert.name,
-      issued_at:    cert.date,
-      pdf_url:      urlData?.publicUrl || '',
-      photo_url:    photoUrl,
-      seq:          seqNum || null,
-      verify_token: verifyToken,
+    const registrationId = (idx >= 0 && idx < participants.length)
+      ? (participants[idx].registration_id ?? null) : null
+
+    const { error: insErr } = await adminSupabase.from('certificates').insert({
+      cert_id:         cert.cert_id,
+      event_id:        eventId,
+      trainee_id:      trainee?.id ?? null,
+      trainee_name:    cert.name,
+      issued_at:       cert.date,
+      issue_date:      String(cert.date).slice(0, 10),   // tz-safe calendar date
+      pdf_url:         urlData?.publicUrl || '',
+      photo_url:       photoUrl,
+      seq:             seqNum || null,
+      verify_token:    verifyToken,
       signature,
+      registration_id: registrationId,                    // trained-gate + certifiable-once
     })
+    if (insErr) {
+      // e.g. "registration is not confirmed as trained", or certifiable-once
+      issued.push({ cert_id: '', name: cert.name, pdf_url: '', error: insErr.message })
+      continue
+    }
 
     issued.push({ cert_id: cert.cert_id, name: cert.name, pdf_url: urlData?.publicUrl || '' })
   }
