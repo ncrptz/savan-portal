@@ -8,7 +8,7 @@ import { Eye, EyeOff } from 'lucide-react'
 function LoginForm() {
   const router  = useRouter()
   const params  = useSearchParams()
-  const redirect = params.get('redirect') || '/admin'
+  const redirectParam = params.get('redirect')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [showPwd, setShowPwd]   = useState(false)
@@ -22,9 +22,10 @@ function LoginForm() {
     if (err) { setError(err.message); setLoading(false); return }
     const { data: profile } = await supabase.from('profiles').select('role').eq('user_id', data.user.id).single()
     const role = profile?.role
-    if (role === 'trainee') router.push('/trainee')
+    if (redirectParam) router.push(redirectParam)
+    else if (role === 'trainee') router.push('/trainee')
     else if (role === 'organisation') router.push('/org')
-    else router.push(redirect)
+    else router.push('/admin')
   }
 
   return (
