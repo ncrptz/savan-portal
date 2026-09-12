@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Calendar, Users, Award, Pencil, FileText, Plus } from 'lucide-react'
+import RegistrantsPanel from '@/components/admin/RegistrantsPanel'
 
 export default async function EventDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -78,6 +79,9 @@ export default async function EventDetailPage({ params }: { params: { id: string
           </div>
         )}
       </div>
+
+      {/* Registrants */}
+      <RegistrantsPanel eventId={params.id} registrationOpen={event.registration_open} />
 
       {/* Certificates table */}
       <div className="card">
