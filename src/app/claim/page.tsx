@@ -18,9 +18,10 @@ function ClaimInner() {
     if (!token) { setState('error'); setMsg('This claim link is missing its code.'); return }
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setState('need-auth'); return }
+    if (!user) { try { localStorage.setItem('savan_pending_claim', token) } catch {} ; setState('need-auth'); return }
     const { error } = await supabase.rpc('claim_registration', { p_claim_token: token })
     if (error) { setState('error'); setMsg(error.message); return }
+    try { localStorage.removeItem('savan_pending_claim') } catch {}
     setState('ok')
     setTimeout(() => router.push('/trainee'), 1600)
   }
