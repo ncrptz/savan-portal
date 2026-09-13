@@ -1,9 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Users, Check, DoorOpen, DoorClosed, Award, UserPlus, Link2 } from 'lucide-react'
+import { Users, Check, DoorOpen, DoorClosed, Award, UserPlus, Link2, Camera } from 'lucide-react'
 
-interface Reg { id: string; training_id: string; full_name: string; status: string; user_id: string | null; created_at: string }
+interface Reg { id: string; training_id: string; full_name: string; status: string; user_id: string | null; photo_url: string | null; created_at: string }
+
+const PHOTO_NOTE = 'This photo appears on the certificate and is frozen once issued. Use a clear, well-lit face, looking at the camera — not a group shot.'
 
 export default function RegistrantsPanel(
   { eventId, registrationOpen }: { eventId: string; registrationOpen: boolean }
@@ -19,10 +21,11 @@ export default function RegistrantsPanel(
   const [showAdd, setShowAdd] = useState(false)
   const [addName, setAddName] = useState('')
   const [addEmail, setAddEmail] = useState('')
+  const [addPhoto, setAddPhoto] = useState<File | null>(null)
 
   async function load(preselectTrained = false) {
     const { data } = await createClient().from('event_registrations')
-      .select('id, training_id, full_name, status, user_id, created_at')
+      .select('id, training_id, full_name, status, user_id, photo_url, created_at')
       .eq('event_id', eventId).order('created_at')
     const rows: Reg[] = (data as any) ?? []
     setRegs(rows)
@@ -44,14 +47,40 @@ export default function RegistrantsPanel(
     const n = new Set(sel); n.has(id) ? n.delete(id) : n.add(id); setSel(n)
   }
 
+  async function uploadPhotoFor(regId: string, file: File) {
+    const supabase = createClient()
+    const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase()
+    const path = `registrations/${regId}.${ext}`
+    const { error: upErr } = await supabase.storage.from('photos')
+      .upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' })
+    if (upErr) return upErr.message
+    const { data: pub } = supabase.storage.from('photos').getPublicUrl(path)
+    const { error } = await supabase.rpc('set_registration_photo',
+      { p_registration_id: regId, p_photo_url: pub?.publicUrl })
+    return error?.message || null
+  }
+
+  async function onRowPhoto(regId: string, file: File) {
+    setBusy(true); setErr(''); setMsg('')
+    const e = await uploadPhotoFor(regId, file)
+    setBusy(false)
+    if (e) { setErr(e); return }
+    setMsg('Photo attached.'); await load(true)
+  }
+
   async function addWalkIn() {
     if (!addName.trim()) return
-    setBusy(true); setErr(''); setMsg(''); setGenErrors([])
-    const { error } = await createClient().rpc('admin_create_registration',
+    setBusy(true); setErr(''); setMsg('')
+    const s = createClient()
+    const { data: tid, error } = await s.rpc('admin_create_registration',
       { p_event_id: eventId, p_full_name: addName.trim(), p_email: addEmail.trim() || null })
-    setBusy(false)
-    if (error) { setErr(error.message); return }
-    setAddName(''); setAddEmail(''); setShowAdd(false); setMsg('Participant added.'); await load(true)
+    if (error) { setErr(error.message); setBusy(false); return }
+    if (addPhoto && tid) {
+      const { data: reg } = await s.from('event_registrations').select('id').eq('training_id', tid).single()
+      if (reg?.id) { const e = await uploadPhotoFor(reg.id, addPhoto); if (e) setErr(e) }
+    }
+    setBusy(false); setAddName(''); setAddEmail(''); setAddPhoto(null); setShowAdd(false)
+    setMsg('Participant added.'); await load(true)
   }
 
   async function confirmTrained(ids: string[]) {
@@ -79,7 +108,7 @@ export default function RegistrantsPanel(
     setBusy(false)
     if (error) { setErr(error.message); return }
     const url = `${window.location.origin}/claim?token=${data}`
-    try { await navigator.clipboard.writeText(url); setMsg('Claim link copied to clipboard: ' + url) }
+    try { await navigator.clipboard.writeText(url); setMsg('Claim link copied: ' + url) }
     catch { setMsg('Claim link: ' + url) }
   }
 
@@ -149,16 +178,24 @@ export default function RegistrantsPanel(
       </div>
 
       {showAdd && (
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg flex flex-wrap items-end gap-3">
-          <div className="flex-1 min-w-[180px]">
-            <label className="label">Full name</label>
-            <input className="input" value={addName} onChange={e => setAddName(e.target.value)} placeholder="Participant name" />
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="flex-1 min-w-[160px]">
+              <label className="label">Full name</label>
+              <input className="input" value={addName} onChange={e => setAddName(e.target.value)} placeholder="Participant name" />
+            </div>
+            <div className="flex-1 min-w-[160px]">
+              <label className="label">Email <span className="text-gray-400">(optional)</span></label>
+              <input className="input" value={addEmail} onChange={e => setAddEmail(e.target.value)} placeholder="name@example.com" />
+            </div>
+            <label className="btn-secondary text-sm cursor-pointer whitespace-nowrap">
+              {addPhoto ? 'Photo ✓' : 'Add photo'}
+              <input type="file" accept="image/*" className="hidden"
+                onChange={e => setAddPhoto(e.target.files?.[0] || null)} />
+            </label>
+            <button onClick={addWalkIn} disabled={busy || !addName.trim()} className="btn-primary px-5 py-2">Add</button>
           </div>
-          <div className="flex-1 min-w-[180px]">
-            <label className="label">Email <span className="text-gray-400">(optional)</span></label>
-            <input className="input" value={addEmail} onChange={e => setAddEmail(e.target.value)} placeholder="name@example.com" />
-          </div>
-          <button onClick={addWalkIn} disabled={busy || !addName.trim()} className="btn-primary px-5 py-2">Add</button>
+          <p className="text-xs text-gray-400 mt-2">{PHOTO_NOTE}</p>
         </div>
       )}
 
@@ -219,7 +256,12 @@ export default function RegistrantsPanel(
                       <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggleSel(r.id)} />}
                   </td>
                   <td className="py-2 px-2 font-mono text-xs text-gray-600">{r.training_id}</td>
-                  <td className="py-2 px-2 text-gray-900">{r.full_name}</td>
+                  <td className="py-2 px-2 text-gray-900">
+                    <span className="inline-flex items-center gap-2">
+                      {r.photo_url && <img src={r.photo_url} alt="" className="w-7 h-7 rounded object-cover" />}
+                      {r.full_name}
+                    </span>
+                  </td>
                   <td className="py-2 px-2">{badge(r.status)}</td>
                   <td className="py-2 px-2 text-right whitespace-nowrap">
                     {r.status === 'scheduled' && (
@@ -229,6 +271,13 @@ export default function RegistrantsPanel(
                     {r.status === 'trained' && (
                       <button onClick={() => unconfirm(r.id)} disabled={busy}
                         className="text-gray-500 hover:text-red-600 hover:underline text-xs mr-3">Undo</button>
+                    )}
+                    {r.status !== 'certified' && (
+                      <label className="text-gray-500 hover:text-[#000066] text-xs cursor-pointer inline-flex items-center gap-1 mr-3">
+                        <Camera className="w-3 h-3" />{r.photo_url ? 'Replace photo' : 'Add photo'}
+                        <input type="file" accept="image/*" className="hidden"
+                          onChange={e => { const f = e.target.files?.[0]; if (f) onRowPhoto(r.id, f) }} />
+                      </label>
                     )}
                     {!r.user_id && (
                       <button onClick={() => copyClaimLink(r.id)} disabled={busy}
