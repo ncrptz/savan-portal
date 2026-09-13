@@ -129,7 +129,7 @@ export default function HomePage() {
             All rights reserved.
           </p>
           <p className="text-xs text-blue-300 mt-1">
-            Portal managed by MedSciEdit · verify.savan.medscienceeditors.com
+            Portal managed by ncrptz Inn · verify.savan.medscienceeditors.com
           </p>
         </div>
       </footer>
