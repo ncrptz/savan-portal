@@ -140,24 +140,56 @@ export async function POST(req: NextRequest) {
     if (collabSig)  renderForm.append('collab_sig',  collabSig)
   }
 
-  // Attach photos to the render request AND persist each so the verification
-  // page can show it. Index-aligned with participants.
+  // Resolve a photo for each registration-linked participant:
+  // registration photo → linked account's profile photo → none.
+  const regIds: string[] = participants.map((p: any) => p.registration_id).filter(Boolean)
+  const regPhotoById: Record<string, string | null> = {}
+  if (regIds.length) {
+    const { data: regRows } = await adminSupabase
+      .from('event_registrations').select('id, photo_url, user_id').in('id', regIds)
+    const userIds = ((regRows as any[]) ?? []).map(r => r.user_id).filter(Boolean)
+    const profByUser: Record<string, string | null> = {}
+    if (userIds.length) {
+      const { data: profs } = await adminSupabase
+        .from('profiles').select('user_id, photo_url').in('user_id', userIds)
+      ;((profs as any[]) ?? []).forEach(p => { profByUser[p.user_id] = p.photo_url })
+    }
+    ;((regRows as any[]) ?? []).forEach(r => {
+      regPhotoById[r.id] = r.photo_url || (r.user_id ? profByUser[r.user_id] : null) || null
+    })
+  }
+
+  // Attach photos to the render request AND snapshot each to a cert-specific
+  // path (frozen for verification). Source: an uploaded file, else the resolved
+  // registration/profile photo. Index-aligned with participants.
   const photoUrls: (string | null)[] = participants.map(() => null)
   for (let i = 0; i < participants.length; i++) {
-    const photo = form.get(`photo_${i}`) as File | null
-    if (!photo) continue
-    renderForm.append(`photo_${i}`, photo)
+    let bytes: ArrayBuffer | null = null
+    let type = 'image/jpeg'
+    const uploaded = form.get(`photo_${i}`) as File | null
+    if (uploaded && uploaded.size > 0) {
+      bytes = await uploaded.arrayBuffer(); type = uploaded.type || 'image/jpeg'
+    } else {
+      const url = participants[i]?.registration_id ? regPhotoById[participants[i].registration_id] : null
+      if (url) {
+        try {
+          const r = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+          if (r.ok) { bytes = await r.arrayBuffer(); type = r.headers.get('content-type') || 'image/jpeg' }
+        } catch { /* skip */ }
+      }
+    }
+    if (!bytes) continue
+    const ext = type.includes('png') ? 'png' : 'jpg'
+    renderForm.append(`photo_${i}`, new Blob([bytes], { type }), `photo_${i}.${ext}`)
     try {
-      const ext  = (photo.name.split('.').pop() || 'jpg').toLowerCase()
-      const pbuf = Buffer.from(await photo.arrayBuffer())
       const ppath = `events/${eventId}/photo_${seqBase + i + 1}.${ext}`
       const { error: pe } = await adminSupabase.storage
-        .from('photos').upload(ppath, pbuf, { contentType: photo.type || 'image/jpeg', upsert: true })
+        .from('photos').upload(ppath, Buffer.from(bytes), { contentType: type, upsert: true })
       if (!pe) {
         const { data: pu } = adminSupabase.storage.from('photos').getPublicUrl(ppath)
         photoUrls[i] = pu?.publicUrl || null
       }
-    } catch { /* photo persistence is best-effort */ }
+    } catch { /* snapshot is best-effort */ }
   }
 
   // Call Render service
