@@ -92,7 +92,10 @@ export default function ProfilePage() {
                 {uploading ? 'Uploading…' : 'Change photo'}
                 <input type="file" accept="image/*" className="hidden" onChange={onPhoto} disabled={uploading} />
               </label>
-              <p className="text-xs text-gray-400 mt-1">JPG or PNG.</p>
+              <p className="text-xs text-gray-400 mt-1 max-w-xs">
+                This photo appears on your certificate and can&apos;t be changed once a certificate is issued.
+                Updating it here only applies to future certificates. Use a clear, well-lit face looking at the camera.
+              </p>
             </div>
           </div>
 
