@@ -1,17 +1,20 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { CheckCircle, Image as ImageIcon } from 'lucide-react'
+import { CheckCircle, Image as ImageIcon, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { ICON_NAMES, iconFor } from '@/lib/icons'
+import type { Feature } from '@/lib/settings'
 
 interface Settings {
   site_name: string; hero_title: string; hero_subtitle: string
   hero_image_url: string | null; hero_overlay: number
   logo_url: string | null; favicon_url: string | null; footer_text: string; footer_note: string
   mid_image_url: string | null; mid_overlay: number
+  hero_cta_label: string; hero_cta_href: string; offer_title: string; features: Feature[]
 }
 const EMPTY: Settings = {
   site_name: '', hero_title: '', hero_subtitle: '',
-  hero_image_url: null, hero_overlay: 70, logo_url: null, favicon_url: null, footer_text: '', footer_note: '', mid_image_url: null, mid_overlay: 88,
+  hero_image_url: null, hero_overlay: 70, logo_url: null, favicon_url: null, footer_text: '', footer_note: '', mid_image_url: null, mid_overlay: 88, hero_cta_label: '', hero_cta_href: '', offer_title: '', features: [],
 }
 
 export default function CmsPage() {
@@ -34,13 +37,26 @@ export default function CmsPage() {
       if (data) setS({
         site_name: data.site_name || '', hero_title: data.hero_title || '', hero_subtitle: data.hero_subtitle || '',
         hero_image_url: data.hero_image_url, hero_overlay: data.hero_overlay ?? 70,
-        logo_url: data.logo_url, favicon_url: data.favicon_url, footer_text: data.footer_text || '', footer_note: data.footer_note || '', mid_image_url: data.mid_image_url, mid_overlay: data.mid_overlay ?? 88,
+        logo_url: data.logo_url, favicon_url: data.favicon_url, footer_text: data.footer_text || '', footer_note: data.footer_note || '', mid_image_url: data.mid_image_url, mid_overlay: data.mid_overlay ?? 88, hero_cta_label: data.hero_cta_label || '', hero_cta_href: data.hero_cta_href || '', offer_title: data.offer_title || '', features: Array.isArray(data.features) ? data.features : [],
       })
       setReady(true)
     })()
   }, [])
 
   function set<K extends keyof Settings>(k: K, v: Settings[K]) { setS(prev => ({ ...prev, [k]: v })) }
+  function setFeature(i: number, patch: Partial<Feature>) {
+    setS(prev => ({ ...prev, features: prev.features.map((f, j) => j === i ? { ...f, ...patch } : f) }))
+  }
+  function addFeature() { setS(prev => ({ ...prev, features: [...prev.features, { icon: 'Award', title: '', desc: '' }] })) }
+  function removeFeature(i: number) { setS(prev => ({ ...prev, features: prev.features.filter((_, j) => j !== i) })) }
+  function moveFeature(i: number, dir: -1 | 1) {
+    setS(prev => {
+      const arr = [...prev.features]; const j = i + dir
+      if (j < 0 || j >= arr.length) return prev
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+      return { ...prev, features: arr }
+    })
+  }
 
   async function upload(kind: 'logo' | 'favicon' | 'hero' | 'mid', file: File): Promise<string | null> {
     const sb = createClient()
@@ -135,6 +151,61 @@ export default function CmsPage() {
             <input type="range" min={0} max={100} value={s.hero_overlay}
               onChange={e => set('hero_overlay', Number(e.target.value))} className="w-full" />
             <p className="text-xs text-gray-400">Higher = darker blue overlay so the text stays readable. 0 shows the image fully.</p>
+          </div>
+        </div>
+
+        <div className="card space-y-4">
+          <h2 className="font-semibold text-gray-900">Homepage buttons</h2>
+          <p className="text-xs text-gray-500">The second hero button. (The first, &quot;Verify a Certificate&quot;, is fixed.)</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Button label</label>
+              <input className="input" value={s.hero_cta_label} onChange={e => set('hero_cta_label', e.target.value)} placeholder="Register as Trainee" />
+            </div>
+            <div>
+              <label className="label">Button link</label>
+              <input className="input" value={s.hero_cta_href} onChange={e => set('hero_cta_href', e.target.value)} placeholder="/auth/register" />
+            </div>
+          </div>
+        </div>
+
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">&quot;What We Offer&quot; section</h2>
+            <button onClick={addFeature} type="button" className="text-sm text-[#000066] hover:underline inline-flex items-center gap-1">
+              <Plus className="w-4 h-4" />Add card
+            </button>
+          </div>
+          <div>
+            <label className="label">Section heading</label>
+            <input className="input" value={s.offer_title} onChange={e => set('offer_title', e.target.value)} placeholder="What We Offer" />
+          </div>
+          <div className="space-y-3">
+            {s.features.map((f, i) => {
+              const Icon = iconFor(f.icon)
+              return (
+                <div key={i} className="border border-gray-100 rounded-lg p-3">
+                  <div className="flex items-start gap-3">
+                    <div className="flex flex-col items-center gap-1 pt-1">
+                      <button type="button" onClick={() => moveFeature(i, -1)} disabled={i === 0} className="text-gray-400 hover:text-gray-700 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
+                      <Icon className="w-6 h-6 text-[#000066]" />
+                      <button type="button" onClick={() => moveFeature(i, 1)} disabled={i === s.features.length - 1} className="text-gray-400 hover:text-gray-700 disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex gap-2">
+                        <select className="input text-sm py-1.5 w-40" value={f.icon} onChange={e => setFeature(i, { icon: e.target.value })}>
+                          {ICON_NAMES.map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                        <input className="input text-sm py-1.5 flex-1" value={f.title} onChange={e => setFeature(i, { title: e.target.value })} placeholder="Card title" />
+                        <button type="button" onClick={() => removeFeature(i)} className="text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                      <textarea className="input text-sm py-1.5" rows={2} value={f.desc} onChange={e => setFeature(i, { desc: e.target.value })} placeholder="Card description" />
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+            {s.features.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No cards. Use &quot;Add card&quot; to create one.</p>}
           </div>
         </div>
 
