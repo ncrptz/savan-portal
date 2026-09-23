@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 
+export interface Feature { icon: string; title: string; desc: string }
+
 export interface SiteSettings {
   site_name: string
   hero_title: string
@@ -12,6 +14,10 @@ export interface SiteSettings {
   footer_note: string
   mid_image_url: string | null
   mid_overlay: number
+  hero_cta_label: string
+  hero_cta_href: string
+  offer_title: string
+  features: Feature[]
 }
 
 const DEFAULTS: SiteSettings = {
@@ -26,6 +32,17 @@ const DEFAULTS: SiteSettings = {
   footer_note: 'Portal managed by MedSciEdit',
   mid_image_url: null,
   mid_overlay: 88,
+  hero_cta_label: 'Register as Trainee',
+  hero_cta_href: '/auth/register',
+  offer_title: 'What We Offer',
+  features: [
+    { icon: 'Award', title: 'Certified Training', desc: 'Basic Life Support and Automated External Defibrillator training by qualified instructors.' },
+    { icon: 'CheckCircle', title: 'Instant Verification', desc: 'Third parties can verify the authenticity of any SAVAN certificate instantly online.' },
+    { icon: 'Users', title: 'Organisation Training', desc: 'Partner with SAVAN to deliver life-saving training to your staff and community.' },
+    { icon: 'BookOpen', title: 'Virtual Learning', desc: 'Online BLS courses with certification — learn at your own pace.' },
+    { icon: 'Shield', title: 'Tamper-Proof Certificates', desc: 'Every certificate carries a unique ID stored in our secure database.' },
+    { icon: 'Search', title: 'Public Registry', desc: 'Search certified individuals by name or certificate number.' },
+  ],
 }
 
 // Server-side fetch of the single site_settings row, with safe fallbacks so the
@@ -47,6 +64,10 @@ export async function getSettings(): Promise<SiteSettings> {
       footer_note: data.footer_note || DEFAULTS.footer_note,
       mid_image_url: data.mid_image_url ?? null,
       mid_overlay: typeof data.mid_overlay === 'number' ? data.mid_overlay : DEFAULTS.mid_overlay,
+      hero_cta_label: data.hero_cta_label || DEFAULTS.hero_cta_label,
+      hero_cta_href: data.hero_cta_href || DEFAULTS.hero_cta_href,
+      offer_title: data.offer_title || DEFAULTS.offer_title,
+      features: Array.isArray(data.features) && data.features.length ? data.features : DEFAULTS.features,
     }
   } catch {
     return DEFAULTS
