@@ -1,18 +1,22 @@
 import Link from 'next/link'
 import { Shield, CheckCircle, Users, BookOpen, Search, Award } from 'lucide-react'
+import { getSettings } from '@/lib/settings'
 
-export default function HomePage() {
+export default async function HomePage() {
+  const s = await getSettings()
   return (
     <div className="min-h-screen bg-white">
       {/* Nav */}
       <nav className="bg-[#000066] text-white px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-              <Shield className="w-6 h-6 text-[#000066]" />
+            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center overflow-hidden">
+              {s.logo_url
+                ? <img src={s.logo_url} alt="" className="w-full h-full object-contain" />
+                : <Shield className="w-6 h-6 text-[#000066]" />}
             </div>
             <div>
-              <div className="font-bold text-lg leading-tight">SAVAN</div>
+              <div className="font-bold text-lg leading-tight">{s.site_name}</div>
               <div className="text-xs text-blue-200 leading-tight">Save Accident Victims Association of Nigeria</div>
             </div>
           </div>
@@ -28,14 +32,20 @@ export default function HomePage() {
       </nav>
 
       {/* Hero */}
-      <section className="bg-gradient-to-br from-[#000066] to-blue-900 text-white py-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
+      <section className="relative text-white py-20 px-6 bg-gradient-to-br from-[#000066] to-blue-900 overflow-hidden">
+        {s.hero_image_url && (
+          <>
+            <div className="absolute inset-0 bg-cover bg-center"
+              style={{ backgroundImage: `url(${s.hero_image_url})` }} />
+            <div className="absolute inset-0 bg-[#000066]" style={{ opacity: s.hero_overlay / 100 }} />
+          </>
+        )}
+        <div className="relative max-w-4xl mx-auto text-center">
           <h1 className="text-4xl font-bold mb-4">
-            BLS & AED Certification Portal
+            {s.hero_title}
           </h1>
-          <p className="text-xl text-blue-200 mb-8 max-w-2xl mx-auto">
-            Official certificate management and verification platform for
-            Save Accident Victims Association of Nigeria training programmes.
+          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
+            {s.hero_subtitle}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/verify" className="bg-white text-[#000066] px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
@@ -124,12 +134,9 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="bg-[#000066] text-white py-8 px-6">
         <div className="max-w-6xl mx-auto text-center">
-          <p className="text-sm text-blue-200">
-            © {new Date().getFullYear()} Save Accident Victims Association of Nigeria (SAVAN).
-            All rights reserved.
-          </p>
+          <p className="text-sm text-blue-200">{s.footer_text}</p>
           <p className="text-xs text-blue-300 mt-1">
-            Portal managed by ncrptz Inn · verify.savan.medscienceeditors.com
+            Portal managed by MedSciEdit
           </p>
         </div>
       </footer>
