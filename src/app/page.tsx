@@ -135,9 +135,7 @@ export default async function HomePage() {
       <footer className="bg-[#000066] text-white py-8 px-6">
         <div className="max-w-6xl mx-auto text-center">
           <p className="text-sm text-blue-200">{s.footer_text}</p>
-          <p className="text-xs text-blue-300 mt-1">
-            Portal managed by MedSciEdit
-          </p>
+          {s.footer_note && <p className="text-xs text-blue-300 mt-1">{s.footer_note}</p>}
         </div>
       </footer>
     </div>
