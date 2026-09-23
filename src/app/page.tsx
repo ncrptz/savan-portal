@@ -58,8 +58,17 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Mid-page background band */}
+      <div className="relative">
+        {s.mid_image_url && (<>
+          <div className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${s.mid_image_url})`, backgroundAttachment: 'fixed' }} />
+          <div className="absolute inset-0 bg-white" style={{ opacity: s.mid_overlay / 100 }} />
+        </>)}
+        <div className="relative">
+
       {/* Verify widget */}
-      <section className="py-12 px-6 bg-[#FFFFCC]/30">
+      <section className={`py-12 px-6 ${s.mid_image_url ? '' : 'bg-[#FFFFCC]/30'}`}>
         <div className="max-w-xl mx-auto">
           <h2 className="text-xl font-bold text-center text-[#000066] mb-6">
             Quick Certificate Verification
@@ -130,6 +139,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+        </div>
+      </div>
 
       {/* Footer */}
       <footer className="bg-[#000066] text-white py-8 px-6">
