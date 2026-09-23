@@ -1,9 +1,10 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Users, Check, DoorOpen, DoorClosed, Award, UserPlus, Link2, Camera } from 'lucide-react'
+import { Users, Check, DoorOpen, DoorClosed, Award, UserPlus, Link2, Camera, FileUp, Download } from 'lucide-react'
 
 interface Reg { id: string; training_id: string; full_name: string; status: string; user_id: string | null; photo_url: string | null; created_at: string }
+interface OrgOpt { id: string; name: string }
 
 const PHOTO_NOTE = 'This photo appears on the certificate and is frozen once issued. Use a clear, well-lit face, looking at the camera — not a group shot.'
 
@@ -22,6 +23,63 @@ export default function RegistrantsPanel(
   const [addName, setAddName] = useState('')
   const [addEmail, setAddEmail] = useState('')
   const [addPhoto, setAddPhoto] = useState<File | null>(null)
+  // bulk registration
+  const [showBulk, setShowBulk] = useState(false)
+  const [orgs, setOrgs] = useState<OrgOpt[]>([])
+  const [bulkOrg, setBulkOrg] = useState('')
+  const [bulkResult, setBulkResult] = useState<{ added: number; errors: { name: string; error: string }[] } | null>(null)
+
+  useEffect(() => {
+    createClient().from('organisations').select('id, name').eq('status', 'approved').order('name')
+      .then(({ data }) => setOrgs((data as any) ?? []))
+  }, [])
+
+  // Parse a CSV or XLSX file into { name, email } rows (name required).
+  async function parseBulk(file: File): Promise<{ name: string; email: string }[]> {
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    const norm = (rows: Record<string, any>[]) => rows.map(r => {
+      const g = (keys: string[]) => { for (const k of Object.keys(r)) if (keys.includes(k.trim().toLowerCase())) return String(r[k] ?? '').trim(); return '' }
+      return { name: g(['name', 'full name', 'fullname', 'participant', 'participant name']), email: g(['email', 'e-mail', 'mail']) }
+    }).filter(r => r.name)
+    if (ext === 'csv') {
+      const Papa = (await import('papaparse')).default
+      const res = Papa.parse(await file.text(), { header: true, skipEmptyLines: true })
+      return norm(res.data as Record<string, any>[])
+    }
+    if (ext === 'xlsx' || ext === 'xls') {
+      const XLSX = await import('xlsx')
+      const wb = XLSX.read(await file.arrayBuffer())
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      return norm(XLSX.utils.sheet_to_json<Record<string, any>>(ws))
+    }
+    throw new Error('Unsupported file — use CSV or Excel (.xlsx).')
+  }
+
+  async function onBulkFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return
+    setBusy(true); setErr(''); setMsg(''); setBulkResult(null)
+    let rows: { name: string; email: string }[]
+    try { rows = await parseBulk(file) } catch (ex: any) { setErr(ex.message); setBusy(false); e.target.value = ''; return }
+    if (!rows.length) { setErr('No participant names found. The file needs a "name" column.'); setBusy(false); e.target.value = ''; return }
+    const s = createClient()
+    const errors: { name: string; error: string }[] = []
+    let added = 0
+    for (const r of rows) {
+      const { error } = await s.rpc('admin_create_registration',
+        { p_event_id: eventId, p_full_name: r.name, p_email: r.email || null, p_org_id: bulkOrg || null })
+      if (error) errors.push({ name: r.name, error: error.message }); else added++
+    }
+    setBusy(false); setBulkResult({ added, errors }); e.target.value = ''
+    setMsg(`Registered ${added} participant${added !== 1 ? 's' : ''}${bulkOrg ? ' under the selected organisation' : ''}.`)
+    await load(false)
+  }
+
+  function downloadTemplate() {
+    const blob = new Blob(['name,email\nJane Doe,jane@example.com\nJohn Smith,\n'], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = 'participants_template.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
 
   async function load(preselectTrained = false) {
     const { data } = await createClient().from('event_registrations')
@@ -164,6 +222,10 @@ export default function RegistrantsPanel(
           <h2 className="font-semibold text-gray-900">Registrants ({regs.length})</h2>
         </div>
         <div className="flex items-center gap-2">
+          <button onClick={() => { setShowBulk(!showBulk); setBulkResult(null) }}
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">
+            <FileUp className="w-4 h-4" />Bulk upload
+          </button>
           <button onClick={() => setShowAdd(!showAdd)}
             className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50">
             <UserPlus className="w-4 h-4" />Add participant
@@ -176,6 +238,48 @@ export default function RegistrantsPanel(
           </button>
         </div>
       </div>
+
+      {showBulk && (
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="font-medium text-[#000066] mb-2">Bulk register participants</h3>
+          <ol className="text-xs text-gray-600 list-decimal list-inside space-y-1 mb-3">
+            <li>Prepare a <strong>CSV or Excel (.xlsx)</strong> file with a <strong>name</strong> column (an optional <strong>email</strong> column too).</li>
+            <li>Optionally choose the collaborating organisation these participants belong to.</li>
+            <li>Upload — each person is registered and assigned a unique training ID automatically.</li>
+          </ol>
+          <div className="flex flex-wrap items-end gap-3">
+            <div className="min-w-[200px]">
+              <label className="label">Organisation <span className="text-gray-400">(optional)</span></label>
+              <select className="input" value={bulkOrg} onChange={e => setBulkOrg(e.target.value)}>
+                <option value="">— None (SAVAN direct) —</option>
+                {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">Participant list</label>
+              <input type="file" accept=".csv,.xlsx,.xls" className="input text-sm py-1.5 bg-white"
+                onChange={onBulkFile} disabled={busy} />
+            </div>
+            <button onClick={downloadTemplate} type="button"
+              className="text-sm text-[#000066] hover:underline inline-flex items-center gap-1 pb-2">
+              <Download className="w-4 h-4" />CSV template
+            </button>
+          </div>
+          {bulkResult && (
+            <div className="mt-3 text-sm">
+              <p className="text-green-700">Registered {bulkResult.added} participant{bulkResult.added !== 1 ? 's' : ''}.</p>
+              {bulkResult.errors.length > 0 && (
+                <div className="mt-1 text-amber-700">
+                  <p className="font-medium">{bulkResult.errors.length} row(s) skipped:</p>
+                  <ul className="list-disc list-inside">
+                    {bulkResult.errors.slice(0, 8).map((e, i) => <li key={i}>{e.name}: {e.error}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {showAdd && (
         <div className="mb-4 p-3 bg-gray-50 rounded-lg">
