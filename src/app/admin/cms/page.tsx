@@ -6,11 +6,11 @@ import { CheckCircle, Image as ImageIcon } from 'lucide-react'
 interface Settings {
   site_name: string; hero_title: string; hero_subtitle: string
   hero_image_url: string | null; hero_overlay: number
-  logo_url: string | null; favicon_url: string | null; footer_text: string
+  logo_url: string | null; favicon_url: string | null; footer_text: string; footer_note: string
 }
 const EMPTY: Settings = {
   site_name: '', hero_title: '', hero_subtitle: '',
-  hero_image_url: null, hero_overlay: 70, logo_url: null, favicon_url: null, footer_text: '',
+  hero_image_url: null, hero_overlay: 70, logo_url: null, favicon_url: null, footer_text: '', footer_note: '',
 }
 
 export default function CmsPage() {
@@ -33,7 +33,7 @@ export default function CmsPage() {
       if (data) setS({
         site_name: data.site_name || '', hero_title: data.hero_title || '', hero_subtitle: data.hero_subtitle || '',
         hero_image_url: data.hero_image_url, hero_overlay: data.hero_overlay ?? 70,
-        logo_url: data.logo_url, favicon_url: data.favicon_url, footer_text: data.footer_text || '',
+        logo_url: data.logo_url, favicon_url: data.favicon_url, footer_text: data.footer_text || '', footer_note: data.footer_note || '',
       })
       setReady(true)
     })()
@@ -69,7 +69,7 @@ export default function CmsPage() {
     const { error } = await createClient().from('site_settings').update({
       site_name: s.site_name, hero_title: s.hero_title, hero_subtitle: s.hero_subtitle,
       hero_image_url: s.hero_image_url, hero_overlay: s.hero_overlay,
-      logo_url: s.logo_url, favicon_url: s.favicon_url, footer_text: s.footer_text,
+      logo_url: s.logo_url, favicon_url: s.favicon_url, footer_text: s.footer_text, footer_note: s.footer_note,
       updated_at: new Date().toISOString(),
     }).eq('id', true)
     setBusy(false)
@@ -141,6 +141,10 @@ export default function CmsPage() {
           <div>
             <label className="label">Footer text</label>
             <input className="input" value={s.footer_text} onChange={e => set('footer_text', e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Footer sub-line <span className="text-gray-400">(e.g. "Portal managed by …")</span></label>
+            <input className="input" value={s.footer_note} onChange={e => set('footer_note', e.target.value)} />
           </div>
         </div>
 
