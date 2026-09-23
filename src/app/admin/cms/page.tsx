@@ -84,14 +84,16 @@ export default function CmsPage() {
 
   async function save() {
     setBusy(true); setErr(''); setMsg('')
-    const { error } = await createClient().from('site_settings').update({
+    const { data, error } = await createClient().from('site_settings').update({
       site_name: s.site_name, hero_title: s.hero_title, hero_subtitle: s.hero_subtitle,
       hero_image_url: s.hero_image_url, hero_overlay: s.hero_overlay,
       logo_url: s.logo_url, favicon_url: s.favicon_url, footer_text: s.footer_text, footer_note: s.footer_note, mid_image_url: s.mid_image_url, mid_overlay: s.mid_overlay,
+      hero_cta_label: s.hero_cta_label, hero_cta_href: s.hero_cta_href, offer_title: s.offer_title, features: s.features,
       updated_at: new Date().toISOString(),
-    }).eq('id', true)
+    }).eq('id', true).select()
     setBusy(false)
     if (error) { setErr(error.message); return }
+    if (!data || data.length === 0) { setErr('Save did not apply (no rows updated). Check your permissions.'); return }
     setMsg('Saved. Public pages update on their next load.')
   }
 
@@ -244,3 +246,4 @@ export default function CmsPage() {
     </div>
   )
 }
+
