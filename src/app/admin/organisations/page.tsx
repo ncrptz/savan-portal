@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Building2, Plus, Check, Ban, RotateCcw, Pencil } from 'lucide-react'
+import { Building2, Plus, Check, Ban, RotateCcw, Pencil, Link2 } from 'lucide-react'
 
 interface Org {
   id: string; name: string; contact_email: string; contact_phone: string | null
@@ -23,7 +23,20 @@ export default function OrganisationsPage() {
   const [phone, setPhone]   = useState('')
   const [logo, setLogo]     = useState<File | null>(null)
 
+  const [linkOrg, setLinkOrg] = useState<string | null>(null)
+  const [linkEmail, setLinkEmail] = useState('')
+
   function resetForm() { setEditId(null); setName(''); setEmail(''); setPhone(''); setLogo(null) }
+
+  async function linkAccount(orgId: string) {
+    if (!linkEmail.trim()) { setErr('Enter the account email to link.'); return }
+    setBusy(true); setErr(''); setMsg('')
+    const { error } = await createClient().rpc('admin_link_org_account',
+      { p_email: linkEmail.trim(), p_org_id: orgId })
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    setLinkOrg(null); setLinkEmail(''); setMsg('Account linked to organisation.')
+  }
   function startEdit(o: Org) {
     setEditId(o.id); setName(o.name); setEmail(o.contact_email); setPhone(o.contact_phone || '')
     setLogo(null); setShowNew(true); setErr(''); setMsg('')
@@ -187,6 +200,18 @@ export default function OrganisationsPage() {
                       className="text-gray-500 hover:text-[#000066] hover:underline text-xs inline-flex items-center gap-1 ml-3">
                       <Pencil className="w-3 h-3" />Edit
                     </button>
+                    <button onClick={() => { setLinkOrg(linkOrg === o.id ? null : o.id); setLinkEmail(''); setErr(''); setMsg('') }} disabled={busy}
+                      className="text-gray-500 hover:text-[#000066] hover:underline text-xs inline-flex items-center gap-1 ml-3">
+                      <Link2 className="w-3 h-3" />Link account
+                    </button>
+                    {linkOrg === o.id && (
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        <input className="input text-sm py-1 w-56" placeholder="account email"
+                          value={linkEmail} onChange={e => setLinkEmail(e.target.value)} />
+                        <button onClick={() => linkAccount(o.id)} disabled={busy}
+                          className="btn-primary text-xs px-3 py-1">Link</button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}
