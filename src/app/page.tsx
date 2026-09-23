@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Shield, CheckCircle, Users, BookOpen, Search, Award } from 'lucide-react'
 import { getSettings } from '@/lib/settings'
+import { iconFor } from '@/lib/icons'
 
 export default async function HomePage() {
   const s = await getSettings()
@@ -51,8 +52,8 @@ export default async function HomePage() {
             <Link href="/verify" className="bg-white text-[#000066] px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
               Verify a Certificate
             </Link>
-            <Link href="/auth/register" className="border border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-colors">
-              Register as Trainee
+            <Link href={s.hero_cta_href} className="border border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-colors">
+              {s.hero_cta_label}
             </Link>
           </div>
         </div>
@@ -95,47 +96,19 @@ export default async function HomePage() {
       <section className="py-16 px-6">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-2xl font-bold text-center text-[#000066] mb-12">
-            What We Offer
+            {s.offer_title}
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: <Award className="w-8 h-8 text-[#000066]" />,
-                title: "Certified Training",
-                desc: "Basic Life Support and Automated External Defibrillator training by qualified instructors."
-              },
-              {
-                icon: <CheckCircle className="w-8 h-8 text-[#000066]" />,
-                title: "Instant Verification",
-                desc: "Third parties can verify the authenticity of any SAVAN certificate instantly online."
-              },
-              {
-                icon: <Users className="w-8 h-8 text-[#000066]" />,
-                title: "Organisation Training",
-                desc: "Partner with SAVAN to deliver life-saving training to your staff and community."
-              },
-              {
-                icon: <BookOpen className="w-8 h-8 text-[#000066]" />,
-                title: "Virtual Learning",
-                desc: "Online BLS courses with certification — learn at your own pace."
-              },
-              {
-                icon: <Shield className="w-8 h-8 text-[#000066]" />,
-                title: "Tamper-Proof Certificates",
-                desc: "Every certificate carries a unique ID stored in our secure database."
-              },
-              {
-                icon: <Search className="w-8 h-8 text-[#000066]" />,
-                title: "Public Registry",
-                desc: "Search certified individuals by name or certificate number."
-              },
-            ].map((f, i) => (
-              <div key={i} className="text-center p-6">
-                <div className="flex justify-center mb-4">{f.icon}</div>
-                <h3 className="font-semibold text-lg mb-2">{f.title}</h3>
-                <p className="text-gray-600 text-sm">{f.desc}</p>
-              </div>
-            ))}
+            {s.features.map((f, i) => {
+              const Icon = iconFor(f.icon)
+              return (
+                <div key={i} className="text-center p-6">
+                  <div className="flex justify-center mb-4"><Icon className="w-8 h-8 text-[#000066]" /></div>
+                  <h3 className="font-semibold text-lg mb-2">{f.title}</h3>
+                  <p className="text-gray-600 text-sm">{f.desc}</p>
+                </div>
+              )
+            })}
           </div>
         </div>
       </section>
