@@ -10,6 +10,8 @@ export interface SiteSettings {
   favicon_url: string | null
   footer_text: string
   footer_note: string
+  mid_image_url: string | null
+  mid_overlay: number
 }
 
 const DEFAULTS: SiteSettings = {
@@ -22,6 +24,8 @@ const DEFAULTS: SiteSettings = {
   favicon_url: null,
   footer_text: '© Save Accident Victims Association of Nigeria (SAVAN). All rights reserved.',
   footer_note: 'Portal managed by MedSciEdit',
+  mid_image_url: null,
+  mid_overlay: 88,
 }
 
 // Server-side fetch of the single site_settings row, with safe fallbacks so the
@@ -41,6 +45,8 @@ export async function getSettings(): Promise<SiteSettings> {
       favicon_url: data.favicon_url ?? null,
       footer_text: data.footer_text || DEFAULTS.footer_text,
       footer_note: data.footer_note || DEFAULTS.footer_note,
+      mid_image_url: data.mid_image_url ?? null,
+      mid_overlay: typeof data.mid_overlay === 'number' ? data.mid_overlay : DEFAULTS.mid_overlay,
     }
   } catch {
     return DEFAULTS
