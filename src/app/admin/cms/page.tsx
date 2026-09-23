@@ -7,10 +7,11 @@ interface Settings {
   site_name: string; hero_title: string; hero_subtitle: string
   hero_image_url: string | null; hero_overlay: number
   logo_url: string | null; favicon_url: string | null; footer_text: string; footer_note: string
+  mid_image_url: string | null; mid_overlay: number
 }
 const EMPTY: Settings = {
   site_name: '', hero_title: '', hero_subtitle: '',
-  hero_image_url: null, hero_overlay: 70, logo_url: null, favicon_url: null, footer_text: '', footer_note: '',
+  hero_image_url: null, hero_overlay: 70, logo_url: null, favicon_url: null, footer_text: '', footer_note: '', mid_image_url: null, mid_overlay: 88,
 }
 
 export default function CmsPage() {
@@ -33,7 +34,7 @@ export default function CmsPage() {
       if (data) setS({
         site_name: data.site_name || '', hero_title: data.hero_title || '', hero_subtitle: data.hero_subtitle || '',
         hero_image_url: data.hero_image_url, hero_overlay: data.hero_overlay ?? 70,
-        logo_url: data.logo_url, favicon_url: data.favicon_url, footer_text: data.footer_text || '', footer_note: data.footer_note || '',
+        logo_url: data.logo_url, favicon_url: data.favicon_url, footer_text: data.footer_text || '', footer_note: data.footer_note || '', mid_image_url: data.mid_image_url, mid_overlay: data.mid_overlay ?? 88,
       })
       setReady(true)
     })()
@@ -41,7 +42,7 @@ export default function CmsPage() {
 
   function set<K extends keyof Settings>(k: K, v: Settings[K]) { setS(prev => ({ ...prev, [k]: v })) }
 
-  async function upload(kind: 'logo' | 'favicon' | 'hero', file: File): Promise<string | null> {
+  async function upload(kind: 'logo' | 'favicon' | 'hero' | 'mid', file: File): Promise<string | null> {
     const sb = createClient()
     const ext = (file.name.split('.').pop() || 'png').toLowerCase()
     const path = `${kind}.${ext}`
@@ -51,7 +52,7 @@ export default function CmsPage() {
     return data?.publicUrl ? `${data.publicUrl}?t=${Date.now()}` : null
   }
 
-  async function onFile(kind: 'logo' | 'favicon' | 'hero', e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFile(kind: 'logo' | 'favicon' | 'hero' | 'mid', e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return
     setBusy(true); setErr(''); setMsg('')
     const url = await upload(kind, file)
@@ -59,6 +60,7 @@ export default function CmsPage() {
     if (url) {
       if (kind === 'logo') set('logo_url', url)
       else if (kind === 'favicon') set('favicon_url', url)
+      else if (kind === 'mid') set('mid_image_url', url)
       else set('hero_image_url', url)
       setMsg('Image uploaded — remember to Save.')
     }
@@ -69,7 +71,7 @@ export default function CmsPage() {
     const { error } = await createClient().from('site_settings').update({
       site_name: s.site_name, hero_title: s.hero_title, hero_subtitle: s.hero_subtitle,
       hero_image_url: s.hero_image_url, hero_overlay: s.hero_overlay,
-      logo_url: s.logo_url, favicon_url: s.favicon_url, footer_text: s.footer_text, footer_note: s.footer_note,
+      logo_url: s.logo_url, favicon_url: s.favicon_url, footer_text: s.footer_text, footer_note: s.footer_note, mid_image_url: s.mid_image_url, mid_overlay: s.mid_overlay,
       updated_at: new Date().toISOString(),
     }).eq('id', true)
     setBusy(false)
@@ -133,6 +135,22 @@ export default function CmsPage() {
             <input type="range" min={0} max={100} value={s.hero_overlay}
               onChange={e => set('hero_overlay', Number(e.target.value))} className="w-full" />
             <p className="text-xs text-gray-400">Higher = darker blue overlay so the text stays readable. 0 shows the image fully.</p>
+          </div>
+        </div>
+
+        <div className="card space-y-4">
+          <h2 className="font-semibold text-gray-900">Mid-page background</h2>
+          <p className="text-xs text-gray-500">A fixed image shown behind the Quick Verification and What We Offer sections as visitors scroll.</p>
+          <div>
+            <label className="label">Background image</label>
+            <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('mid', e)} />
+            <Img url={s.mid_image_url} />
+          </div>
+          <div>
+            <label className="label">Lighten — {s.mid_overlay}% white overlay</label>
+            <input type="range" min={0} max={100} value={s.mid_overlay}
+              onChange={e => set('mid_overlay', Number(e.target.value))} className="w-full" />
+            <p className="text-xs text-gray-400">Higher = whiter (content stays readable). Lower shows more of the image.</p>
           </div>
         </div>
 
