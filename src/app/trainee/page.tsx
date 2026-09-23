@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PortalHeader from '@/components/portal/PortalHeader'
 import PendingClaim from '@/components/portal/PendingClaim'
+import RequestRelease from '@/components/portal/RequestRelease'
 import { formatCertDate } from '@/lib/date'
 import { Award, ExternalLink, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
@@ -93,6 +94,7 @@ export default async function TraineePortal(
             </p>
           </div>
         )}
+        <RequestRelease defaultName={fullName} />
       </div>
     </div>
   )
