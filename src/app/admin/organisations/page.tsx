@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Building2, Plus, Check, Ban, RotateCcw } from 'lucide-react'
+import { Building2, Plus, Check, Ban, RotateCcw, Pencil } from 'lucide-react'
 
 interface Org {
   id: string; name: string; contact_email: string; contact_phone: string | null
@@ -16,11 +16,18 @@ export default function OrganisationsPage() {
   const [busy, setBusy]     = useState(false)
   const [err, setErr]       = useState('')
   const [msg, setMsg]       = useState('')
-  // new-org form
+  // create/edit form
+  const [editId, setEditId] = useState<string | null>(null)
   const [name, setName]     = useState('')
   const [email, setEmail]   = useState('')
   const [phone, setPhone]   = useState('')
   const [logo, setLogo]     = useState<File | null>(null)
+
+  function resetForm() { setEditId(null); setName(''); setEmail(''); setPhone(''); setLogo(null) }
+  function startEdit(o: Org) {
+    setEditId(o.id); setName(o.name); setEmail(o.contact_email); setPhone(o.contact_phone || '')
+    setLogo(null); setShowNew(true); setErr(''); setMsg('')
+  }
 
   async function load() {
     const s = createClient()
@@ -37,25 +44,32 @@ export default function OrganisationsPage() {
   }
   useEffect(() => { load() }, [])
 
-  async function createOrg() {
+  async function saveOrg() {
     if (!name.trim() || !email.trim()) { setErr('Name and contact email are required.'); return }
     setBusy(true); setErr(''); setMsg('')
     const s = createClient()
-    const { data, error } = await s.from('organisations')
-      .insert({ name: name.trim(), contact_email: email.trim(), contact_phone: phone.trim() || null, status: 'approved' })
-      .select('id').single()
-    if (error) { setErr(error.message); setBusy(false); return }
-    if (logo && data?.id) {
+    const fields = { name: name.trim(), contact_email: email.trim(), contact_phone: phone.trim() || null }
+    let orgId = editId
+    if (editId) {
+      const { error } = await s.from('organisations').update(fields).eq('id', editId)
+      if (error) { setErr(error.message); setBusy(false); return }
+    } else {
+      const { data, error } = await s.from('organisations')
+        .insert({ ...fields, status: 'approved' }).select('id').single()
+      if (error) { setErr(error.message); setBusy(false); return }
+      orgId = data?.id ?? null
+    }
+    if (logo && orgId) {
       const ext = (logo.name.split('.').pop() || 'png').toLowerCase()
-      const path = `orgs/${data.id}.${ext}`
+      const path = `orgs/${orgId}.${ext}`
       const { error: up } = await s.storage.from('logos').upload(path, logo, { upsert: true, contentType: logo.type || 'image/png' })
       if (!up) {
         const { data: pub } = s.storage.from('logos').getPublicUrl(path)
-        await s.from('organisations').update({ logo_url: pub?.publicUrl }).eq('id', data.id)
+        await s.from('organisations').update({ logo_url: pub?.publicUrl }).eq('id', orgId)
       }
     }
-    setBusy(false); setName(''); setEmail(''); setPhone(''); setLogo(null); setShowNew(false)
-    setMsg('Organisation created.'); await load()
+    setBusy(false); resetForm(); setShowNew(false)
+    setMsg(editId ? 'Organisation updated.' : 'Organisation created.'); await load()
   }
 
   async function setStatus(id: string, status: string) {
@@ -84,7 +98,8 @@ export default function OrganisationsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Organisations</h1>
           <p className="text-sm text-gray-500 mt-0.5">{orgs.length} partner organisation{orgs.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => setShowNew(!showNew)} className="btn-primary flex items-center gap-2">
+        <button onClick={() => { if (showNew) { setShowNew(false); resetForm() } else { resetForm(); setShowNew(true) } }}
+          className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />New organisation
         </button>
       </div>
@@ -94,6 +109,7 @@ export default function OrganisationsPage() {
 
       {showNew && (
         <div className="card mb-4 space-y-4">
+          <h2 className="font-semibold text-gray-900">{editId ? 'Edit organisation' : 'New organisation'}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="label">Organisation name *</label>
@@ -108,16 +124,16 @@ export default function OrganisationsPage() {
               <input className="input" value={phone} onChange={e => setPhone(e.target.value)} />
             </div>
             <div>
-              <label className="label">Logo <span className="text-gray-400">(optional)</span></label>
+              <label className="label">Logo <span className="text-gray-400">{editId ? '(upload to replace)' : '(optional)'}</span></label>
               <input type="file" accept="image/png,image/jpeg" className="input text-sm py-1.5"
                 onChange={e => setLogo(e.target.files?.[0] || null)} />
             </div>
           </div>
           <div className="flex gap-3">
-            <button onClick={createOrg} disabled={busy} className="btn-primary px-6">
-              {busy ? 'Creating…' : 'Create'}
+            <button onClick={saveOrg} disabled={busy} className="btn-primary px-6">
+              {busy ? 'Saving…' : editId ? 'Save changes' : 'Create'}
             </button>
-            <button onClick={() => setShowNew(false)} className="btn-secondary px-6">Cancel</button>
+            <button onClick={() => { setShowNew(false); resetForm() }} className="btn-secondary px-6">Cancel</button>
           </div>
         </div>
       )}
@@ -167,6 +183,10 @@ export default function OrganisationsPage() {
                         <RotateCcw className="w-3 h-3" />Reinstate
                       </button>
                     )}
+                    <button onClick={() => startEdit(o)} disabled={busy}
+                      className="text-gray-500 hover:text-[#000066] hover:underline text-xs inline-flex items-center gap-1 ml-3">
+                      <Pencil className="w-3 h-3" />Edit
+                    </button>
                   </td>
                 </tr>
               ))}
