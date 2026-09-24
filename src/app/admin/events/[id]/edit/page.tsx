@@ -10,6 +10,7 @@ interface EventForm {
   venue: string
   template_type: string
   sponsored_by: string
+  collab_org_id: string
   collab_signer_name: string
   collab_signer_title: string
   year: number
@@ -20,7 +21,7 @@ interface EventForm {
 
 const EMPTY: EventForm = {
   title: '', training_date: '', venue: '',
-  template_type: 'T1', sponsored_by: '',
+  template_type: 'T1', sponsored_by: '', collab_org_id: '',
   collab_signer_name: '', collab_signer_title: '',
   year: new Date().getFullYear(),
   month: new Date().getMonth() + 1,
@@ -33,16 +34,22 @@ export default function EditEventPage() {
   const { id: eventId } = useParams<{ id: string }>()
 
   const [form, setForm]       = useState<EventForm>(EMPTY)
+  const [orgs, setOrgs]       = useState<{ id: string; name: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving]   = useState(false)
   const [error,  setError]    = useState('')
+
+  useEffect(() => {
+    createClient().from('organisations').select('id, name').eq('status', 'approved').order('name')
+      .then(({ data }) => setOrgs((data as any) ?? []))
+  }, [])
 
   useEffect(() => {
     if (!eventId) return
     const supabase = createClient()
     supabase
       .from('training_events')
-      .select('title, training_date, venue, template_type, sponsored_by, collab_signer_name, collab_signer_title, year, month, session_in_month, is_test')
+      .select('title, training_date, venue, template_type, sponsored_by, collab_org_id, collab_signer_name, collab_signer_title, year, month, session_in_month, is_test')
       .eq('id', eventId)
       .single()
       .then(({ data, error: err }) => {
@@ -54,6 +61,7 @@ export default function EditEventPage() {
             venue: data.venue || '',
             template_type: data.template_type || 'T1',
             sponsored_by: data.sponsored_by || '',
+            collab_org_id: data.collab_org_id || '',
             collab_signer_name: data.collab_signer_name || '',
             collab_signer_title: data.collab_signer_title || '',
             year: data.year ?? EMPTY.year,
@@ -82,6 +90,7 @@ export default function EditEventPage() {
         venue: form.venue,
         template_type: form.template_type,
         sponsored_by: form.sponsored_by,
+        collab_org_id: form.collab_org_id || null,
         collab_signer_name: form.collab_signer_name,
         collab_signer_title: form.collab_signer_title,
         year: form.year,
@@ -168,6 +177,17 @@ export default function EditEventPage() {
             </p>
           </div>
         )}
+
+        <div>
+          <label className="label">Sponsoring / collaborating organisation <span className="text-gray-400">(optional)</span></label>
+          <select className="input" value={form.collab_org_id} onChange={e=>set('collab_org_id',e.target.value)}>
+            <option value="">— None (SAVAN direct) —</option>
+            {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">
+            Everyone who registers for this event — self-registered or admin-added — is linked to this organisation, so it appears on the organisation&apos;s dashboard (now or whenever its account is created). Not in the list? Add it under Organisations first.
+          </p>
+        </div>
 
         {form.template_type === 'T2' && (
           <div className="space-y-4 p-4 bg-blue-50 rounded-lg">
