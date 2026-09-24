@@ -94,11 +94,16 @@ export default function RegistrantsPanel(
 
   async function toggleOpen() {
     setBusy(true); setErr('')
+    const opening = !open
+    // Opening registration publishes the event to the public /events page; it
+    // stays listed (as "Closed") after registration is later closed.
+    const patch: { registration_open: boolean; public_listed?: boolean } = { registration_open: opening }
+    if (opening) patch.public_listed = true
     const { error } = await createClient()
-      .from('training_events').update({ registration_open: !open }).eq('id', eventId)
+      .from('training_events').update(patch).eq('id', eventId)
     setBusy(false)
     if (error) { setErr(error.message); return }
-    setOpen(!open)
+    setOpen(opening)
   }
 
   function toggleSel(id: string) {
