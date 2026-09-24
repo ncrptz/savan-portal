@@ -17,15 +17,6 @@ export default function EventRegisterButton({ eventId, loggedIn, registrationOpe
   const [state, setState] = useState<'idle' | 'busy' | 'done'>(alreadyRegistered ? 'done' : 'idle')
   const [err, setErr] = useState('')
 
-  if (!loggedIn) {
-    return (
-      <Link href="/auth/login?redirect=/events"
-        className="btn-primary px-5 py-2.5 text-sm whitespace-nowrap text-center">
-        Sign in to register
-      </Link>
-    )
-  }
-
   if (state === 'done') {
     return (
       <div className="text-right whitespace-nowrap">
@@ -41,6 +32,15 @@ export default function EventRegisterButton({ eventId, loggedIn, registrationOpe
 
   if (!registrationOpen) {
     return <span className="text-sm text-gray-400 whitespace-nowrap">Registration closed</span>
+  }
+
+  if (!loggedIn) {
+    return (
+      <Link href="/auth/login?redirect=/events"
+        className="btn-primary px-5 py-2.5 text-sm whitespace-nowrap text-center">
+        Sign in to register
+      </Link>
+    )
   }
 
   async function register() {
