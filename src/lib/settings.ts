@@ -18,6 +18,12 @@ export interface SiteSettings {
   hero_cta_href: string
   offer_title: string
   features: Feature[]
+  popup_enabled: boolean
+  popup_title: string
+  popup_body: string
+  popup_image_url: string | null
+  popup_cta_label: string
+  popup_cta_href: string
 }
 
 const DEFAULTS: SiteSettings = {
@@ -43,6 +49,12 @@ const DEFAULTS: SiteSettings = {
     { icon: 'Shield', title: 'Tamper-Proof Certificates', desc: 'Every certificate carries a unique ID stored in our secure database.' },
     { icon: 'Search', title: 'Public Registry', desc: 'Search certified individuals by name or certificate number.' },
   ],
+  popup_enabled: false,
+  popup_title: 'Upcoming Training',
+  popup_body: '',
+  popup_image_url: null,
+  popup_cta_label: 'Register Now',
+  popup_cta_href: '/auth/register',
 }
 
 // Server-side fetch of the single site_settings row, with safe fallbacks so the
@@ -68,6 +80,12 @@ export async function getSettings(): Promise<SiteSettings> {
       hero_cta_href: data.hero_cta_href || DEFAULTS.hero_cta_href,
       offer_title: data.offer_title || DEFAULTS.offer_title,
       features: Array.isArray(data.features) && data.features.length ? data.features : DEFAULTS.features,
+      popup_enabled: data.popup_enabled === true,
+      popup_title: data.popup_title || DEFAULTS.popup_title,
+      popup_body: data.popup_body || DEFAULTS.popup_body,
+      popup_image_url: data.popup_image_url ?? null,
+      popup_cta_label: data.popup_cta_label || DEFAULTS.popup_cta_label,
+      popup_cta_href: data.popup_cta_href || DEFAULTS.popup_cta_href,
     }
   } catch {
     return DEFAULTS
