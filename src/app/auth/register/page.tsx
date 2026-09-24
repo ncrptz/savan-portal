@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Shield } from 'lucide-react'
+import PublicNav from '@/components/PublicNav'
 
 type AccountType = 'trainee' | 'organisation'
 
@@ -23,7 +24,7 @@ export default function RegisterPage() {
     e.preventDefault()
     setLoading(true); setError('')
     const supabase = createClient()
-    const { error: err } = await supabase.auth.signUp({
+    const { data, error: err } = await supabase.auth.signUp({
       email, password,
       options: {
         emailRedirectTo: `${window.location.origin}/api/auth/callback`,
@@ -35,11 +36,19 @@ export default function RegisterPage() {
       }
     })
     if (err) { setError(err.message); setLoading(false); return }
+    // Supabase returns a user with an empty identities array (and no error) when
+    // the email is already registered, to avoid leaking which emails exist.
+    if (data.user && (data.user.identities?.length ?? 0) === 0) {
+      setError('This email is already registered. Please sign in instead, or use “Forgot password” if you can’t get in.')
+      setLoading(false); return
+    }
     setDone(true)
   }
 
   if (done) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <PublicNav />
+      <div className="flex-1 flex items-center justify-center p-4">
       <div className="card max-w-md w-full text-center">
         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <Shield className="w-8 h-8 text-green-600" />
@@ -51,11 +60,14 @@ export default function RegisterPage() {
         </p>
         <Link href="/auth/login" className="btn-primary inline-block">Go to sign in</Link>
       </div>
+      </div>
     </div>
   )
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <PublicNav />
+      <div className="flex-1 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-[#000066] rounded-full mb-4">
@@ -116,6 +128,7 @@ export default function RegisterPage() {
             <Link href="/auth/login" className="text-[#000066] hover:underline font-medium">Sign in</Link>
           </p>
         </div>
+      </div>
       </div>
     </div>
   )
