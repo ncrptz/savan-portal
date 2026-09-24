@@ -23,8 +23,9 @@ export default async function EventsPage() {
 
   const { data: eventsData } = await supabase
     .from('training_events')
-    .select('id, title, training_date, venue, registration_open')
-    .eq('status', 'active')
+    .select('id, title, training_date, venue, registration_open, status')
+    .eq('registration_open', true)
+    .neq('status', 'completed')
     .order('training_date', { ascending: true })
   const events = (eventsData as EventRow[]) ?? []
 
