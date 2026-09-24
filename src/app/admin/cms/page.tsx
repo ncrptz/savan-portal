@@ -108,6 +108,9 @@ export default function CmsPage() {
   if (role !== 'superadmin')
     return <div className="max-w-xl mx-auto card text-center text-gray-600">Site content is managed by superadmins only.</div>
 
+  const Hint = ({ children }: { children: React.ReactNode }) =>
+    <p className="text-xs text-gray-400 mt-1">{children}</p>
+
   const Img = ({ url }: { url: string | null }) => url
     ? <img src={url} alt="" className="h-12 object-contain rounded bg-gray-50 border border-gray-100 mt-2" />
     : <div className="h-12 w-12 rounded bg-gray-100 flex items-center justify-center mt-2"><ImageIcon className="w-5 h-5 text-gray-300" /></div>
@@ -130,11 +133,13 @@ export default function CmsPage() {
             <div>
               <label className="label">Logo</label>
               <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('logo', e)} />
+              <Hint>Square PNG with a transparent background, ~256×256px. Shown at 40×40px in the header.</Hint>
               <Img url={s.logo_url} />
             </div>
             <div>
               <label className="label">Favicon <span className="text-gray-400">(browser tab icon)</span></label>
               <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('favicon', e)} />
+              <Hint>Square PNG, 64×64px or larger. Keep it a simple mark — it renders tiny in the browser tab.</Hint>
               <Img url={s.favicon_url} />
             </div>
           </div>
@@ -153,6 +158,7 @@ export default function CmsPage() {
           <div>
             <label className="label">Background image <span className="text-gray-400">(e.g. a BLS training photo)</span></label>
             <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('hero', e)} />
+            <Hint>Landscape, ~1920×1080px (16:9). JPG, under ~500KB. Faces/detail sit centre — the sides may crop on small screens.</Hint>
             <Img url={s.hero_image_url} />
           </div>
           <div>
@@ -224,6 +230,7 @@ export default function CmsPage() {
           <div>
             <label className="label">Background image</label>
             <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('mid', e)} />
+            <Hint>Landscape, ~1920×1080px. JPG, under ~500KB. It stays fixed while visitors scroll, so avoid busy images — a calm photo reads best under the overlay.</Hint>
             <Img url={s.mid_image_url} />
           </div>
           <div>
@@ -254,6 +261,7 @@ export default function CmsPage() {
           <div>
             <label className="label">Image <span className="text-gray-400">(optional banner)</span></label>
             <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('popup', e)} />
+            <Hint>Landscape banner, ~800×450px (16:9). JPG or PNG, under ~300KB. Shown across the top of the popup card.</Hint>
             <Img url={s.popup_image_url} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
