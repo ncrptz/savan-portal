@@ -24,6 +24,10 @@ export interface SiteSettings {
   popup_image_url: string | null
   popup_cta_label: string
   popup_cta_href: string
+  advert_enabled: boolean
+  advert_image_url: string | null
+  advert_href: string
+  advert_alt: string
 }
 
 const DEFAULTS: SiteSettings = {
@@ -55,6 +59,10 @@ const DEFAULTS: SiteSettings = {
   popup_image_url: null,
   popup_cta_label: 'Register Now',
   popup_cta_href: '/auth/register',
+  advert_enabled: false,
+  advert_image_url: null,
+  advert_href: '',
+  advert_alt: '',
 }
 
 // Server-side fetch of the single site_settings row, with safe fallbacks so the
@@ -86,6 +94,10 @@ export async function getSettings(): Promise<SiteSettings> {
       popup_image_url: data.popup_image_url ?? null,
       popup_cta_label: data.popup_cta_label || DEFAULTS.popup_cta_label,
       popup_cta_href: data.popup_cta_href || DEFAULTS.popup_cta_href,
+      advert_enabled: data.advert_enabled === true,
+      advert_image_url: data.advert_image_url ?? null,
+      advert_href: data.advert_href || '',
+      advert_alt: data.advert_alt || '',
     }
   } catch {
     return DEFAULTS
