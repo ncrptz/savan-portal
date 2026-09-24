@@ -90,7 +90,8 @@ export default async function TraineePortal(
             <Award className="w-12 h-12 text-gray-200 mx-auto mb-3" />
             <p className="text-gray-600">No trainings are linked to your account yet.</p>
             <p className="text-gray-400 text-sm mt-1">
-              If you attended a SAVAN training, use the claim link your trainer shared to link it here.
+              If you attended a SAVAN training, use the claim link your trainer shared to link it here,
+              or <Link href="/events" className="text-[#000066] hover:underline">browse upcoming events</Link> to register.
             </p>
           </div>
         )}
