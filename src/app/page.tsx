@@ -3,9 +3,16 @@ import { Shield, CheckCircle, Users, BookOpen, Search, Award } from 'lucide-reac
 import { getSettings } from '@/lib/settings'
 import { iconFor } from '@/lib/icons'
 import EventsPopup from '@/components/EventsPopup'
+import { createClient } from '@/lib/supabase/server'
 
 export default async function HomePage() {
   const s = await getSettings()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const loggedIn = !!user
+  // Signed-in visitors already have an account, so the "join a training" CTAs
+  // send them straight to the event sign-up page instead of the register form.
+  const joinHref = loggedIn ? '/events' : s.hero_cta_href
   return (
     <div className="min-h-screen bg-white">
       {s.popup_enabled && (s.popup_title || s.popup_body || s.popup_image_url) && (
@@ -14,7 +21,7 @@ export default async function HomePage() {
           body={s.popup_body}
           imageUrl={s.popup_image_url}
           ctaLabel={s.popup_cta_label}
-          ctaHref={s.popup_cta_href}
+          ctaHref={loggedIn ? '/events' : s.popup_cta_href}
         />
       )}
       {/* Nav */}
@@ -62,7 +69,7 @@ export default async function HomePage() {
             <Link href="/verify" className="bg-white text-[#000066] px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
               Verify a Certificate
             </Link>
-            <Link href={s.hero_cta_href} className="border border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-colors">
+            <Link href={joinHref} className="border border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white/10 transition-colors">
               {s.hero_cta_label}
             </Link>
           </div>
