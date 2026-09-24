@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Users, Check, DoorOpen, DoorClosed, Award, UserPlus, Link2, Camera, FileUp, Download } from 'lucide-react'
+import { Users, Check, DoorOpen, DoorClosed, Award, UserPlus, Link2, Camera, FileUp, Download, Trash2 } from 'lucide-react'
 
 interface Reg { id: string; training_id: string; full_name: string; status: string; user_id: string | null; photo_url: string | null; created_at: string }
 interface OrgOpt { id: string; name: string }
@@ -150,6 +150,15 @@ export default function RegistrantsPanel(
       if (error) { setErr(error.message); setBusy(false); return }
     }
     setBusy(false); setMsg(`Marked ${ids.length} as trained.`); await load(true)
+  }
+
+  async function removeReg(id: string, name: string) {
+    if (!confirm(`Remove ${name} from this event? This cannot be undone.`)) return
+    setBusy(true); setErr(''); setMsg(''); setGenErrors([])
+    const { error } = await createClient().rpc('admin_delete_registration', { p_registration_id: id })
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    setMsg('Registrant removed.'); await load(true)
   }
 
   async function unconfirm(id: string) {
@@ -387,6 +396,12 @@ export default function RegistrantsPanel(
                       <button onClick={() => copyClaimLink(r.id)} disabled={busy}
                         className="text-gray-500 hover:text-[#000066] text-xs inline-flex items-center gap-1">
                         <Link2 className="w-3 h-3" />Claim link
+                      </button>
+                    )}
+                    {r.status !== 'certified' && (
+                      <button onClick={() => removeReg(r.id, r.full_name)} disabled={busy}
+                        className="text-gray-400 hover:text-red-600 text-xs inline-flex items-center gap-1 ml-3">
+                        <Trash2 className="w-3 h-3" />Remove
                       </button>
                     )}
                   </td>
