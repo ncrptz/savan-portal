@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff } from 'lucide-react'
+import PublicNav from '@/components/PublicNav'
 
 function LoginForm() {
   const router  = useRouter()
@@ -78,10 +79,13 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <Suspense>
-        <LoginForm />
-      </Suspense>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <PublicNav />
+      <div className="flex-1 flex items-center justify-center p-4">
+        <Suspense>
+          <LoginForm />
+        </Suspense>
+      </div>
     </div>
   )
 }
