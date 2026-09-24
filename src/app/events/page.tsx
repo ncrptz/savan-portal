@@ -1,19 +1,10 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getSettings } from '@/lib/settings'
-import { formatCertDate } from '@/lib/date'
-import { Shield, Calendar, MapPin, ArrowLeft } from 'lucide-react'
-import EventRegisterButton from '@/components/EventRegisterButton'
+import { Shield, ArrowLeft } from 'lucide-react'
+import EventsBrowser, { PublicEvent } from '@/components/EventsBrowser'
 
 export const dynamic = 'force-dynamic'
-
-interface EventRow {
-  id: string
-  title: string
-  training_date: string
-  venue: string | null
-  registration_open: boolean
-}
 
 export default async function EventsPage() {
   const s = await getSettings()
@@ -21,23 +12,22 @@ export default async function EventsPage() {
 
   const { data: { user } } = await supabase.auth.getUser()
 
+  // RLS returns only publicly-listed events (opened at some point, or completed).
   const { data: eventsData } = await supabase
     .from('training_events')
     .select('id, title, training_date, venue, registration_open, status')
-    .eq('registration_open', true)
-    .neq('status', 'completed')
-    .order('training_date', { ascending: true })
-  const events = (eventsData as EventRow[]) ?? []
+    .order('training_date', { ascending: false })
+  const events = (eventsData as PublicEvent[]) ?? []
 
   // Which of these the signed-in user is already registered for.
-  let registeredIds = new Set<string>()
+  let registeredIds: string[] = []
   if (user && events.length) {
     const { data: regs } = await supabase
       .from('event_registrations')
       .select('event_id')
       .eq('user_id', user.id)
       .in('event_id', events.map(e => e.id))
-    registeredIds = new Set(((regs as any[]) ?? []).map(r => r.event_id))
+    registeredIds = ((regs as any[]) ?? []).map(r => r.event_id)
   }
 
   return (
@@ -65,40 +55,15 @@ export default async function EventsPage() {
         </Link>
         <h1 className="text-3xl font-bold text-[#000066] mb-2">Training Events</h1>
         <p className="text-gray-600 mb-8">
-          Upcoming SAVAN BLS &amp; AED training sessions. {user ? 'Register for any open session below.' : 'Sign in to register for a session.'}
+          SAVAN BLS &amp; AED training sessions. {user ? 'Register for any open session, or browse past and upcoming ones.' : 'Sign in to register for an open session.'}
         </p>
 
         {events.length === 0 ? (
           <div className="card text-center py-12">
-            <Calendar className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-            <p className="text-gray-500">No training sessions are open right now. Please check back soon.</p>
+            <p className="text-gray-500">No training sessions have been published yet. Please check back soon.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {events.map(ev => (
-              <div key={ev.id} className="card flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h2 className="font-semibold text-lg text-gray-900">{ev.title}</h2>
-                  <div className="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-sm text-gray-500">
-                    <span className="inline-flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4" />{formatCertDate(ev.training_date)}
-                    </span>
-                    {ev.venue && (
-                      <span className="inline-flex items-center gap-1.5">
-                        <MapPin className="w-4 h-4" />{ev.venue}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <EventRegisterButton
-                  eventId={ev.id}
-                  loggedIn={!!user}
-                  registrationOpen={ev.registration_open}
-                  alreadyRegistered={registeredIds.has(ev.id)}
-                />
-              </div>
-            ))}
-          </div>
+          <EventsBrowser events={events} registeredIds={registeredIds} loggedIn={!!user} />
         )}
       </div>
     </div>
