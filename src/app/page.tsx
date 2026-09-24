@@ -2,11 +2,21 @@ import Link from 'next/link'
 import { Shield, CheckCircle, Users, BookOpen, Search, Award } from 'lucide-react'
 import { getSettings } from '@/lib/settings'
 import { iconFor } from '@/lib/icons'
+import EventsPopup from '@/components/EventsPopup'
 
 export default async function HomePage() {
   const s = await getSettings()
   return (
     <div className="min-h-screen bg-white">
+      {s.popup_enabled && (s.popup_title || s.popup_body || s.popup_image_url) && (
+        <EventsPopup
+          title={s.popup_title}
+          body={s.popup_body}
+          imageUrl={s.popup_image_url}
+          ctaLabel={s.popup_cta_label}
+          ctaHref={s.popup_cta_href}
+        />
+      )}
       {/* Nav */}
       <nav className="bg-[#000066] text-white px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
