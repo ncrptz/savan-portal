@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -8,15 +8,21 @@ export default function NewEventPage() {
   const router = useRouter()
   const [form, setForm] = useState({
     title: '', training_date: '', venue: '',
-    template_type: 'T1', sponsored_by: '',
+    template_type: 'T1', sponsored_by: '', collab_org_id: '',
     collab_signer_name: '', collab_signer_title: '',
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
     session_in_month: 1,
     is_test: false,
   })
+  const [orgs, setOrgs] = useState<{ id: string; name: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
+
+  useEffect(() => {
+    createClient().from('organisations').select('id, name').eq('status', 'approved').order('name')
+      .then(({ data }) => setOrgs((data as any) ?? []))
+  }, [])
 
   function set(field: string, value: string | number | boolean) {
     setForm(f => ({ ...f, [field]: value }))
@@ -34,6 +40,7 @@ export default function NewEventPage() {
       .from('training_events')
       .insert({
         ...form,
+        collab_org_id: form.collab_org_id || null,
         event_serial: serialData,
         participant_count: 0,
         status: 'draft',
@@ -110,6 +117,17 @@ export default function NewEventPage() {
             </p>
           </div>
         )}
+
+        <div>
+          <label className="label">Sponsoring / collaborating organisation <span className="text-gray-400">(optional)</span></label>
+          <select className="input" value={form.collab_org_id} onChange={e=>set('collab_org_id',e.target.value)}>
+            <option value="">— None (SAVAN direct) —</option>
+            {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+          <p className="text-xs text-gray-400 mt-1">
+            Everyone who registers for this event — self-registered or admin-added — is linked to this organisation, so it appears on the organisation&apos;s dashboard (now or whenever its account is created). Not in the list? Add it under Organisations first.
+          </p>
+        </div>
 
         {form.template_type === 'T2' && (
           <div className="space-y-4 p-4 bg-blue-50 rounded-lg">
