@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CheckCircle, XCircle } from 'lucide-react'
+import PublicNav from '@/components/PublicNav'
 
 function ClaimInner() {
   const params = useSearchParams()
@@ -29,7 +30,9 @@ function ClaimInner() {
   const loginUrl = `/auth/login?redirect=${encodeURIComponent(`/claim?token=${token}`)}`
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <PublicNav />
+      <div className="flex-1 flex items-center justify-center p-4">
       <div className="card max-w-md w-full text-center">
         {state === 'loading' && <p className="text-gray-500 py-6">Linking your certificate…</p>}
 
@@ -63,6 +66,7 @@ function ClaimInner() {
             <Link href="/trainee" className="btn-secondary px-6 mt-4 inline-block">Go to dashboard</Link>
           </>
         )}
+      </div>
       </div>
     </div>
   )
