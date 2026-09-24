@@ -3,6 +3,7 @@ import { Shield, CheckCircle, Users, BookOpen, Search, Award } from 'lucide-reac
 import { getSettings } from '@/lib/settings'
 import { iconFor } from '@/lib/icons'
 import EventsPopup from '@/components/EventsPopup'
+import FloatingAdvert from '@/components/FloatingAdvert'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function HomePage() {
@@ -23,6 +24,9 @@ export default async function HomePage() {
           ctaLabel={s.popup_cta_label}
           ctaHref={loggedIn ? '/events' : s.popup_cta_href}
         />
+      )}
+      {s.advert_enabled && s.advert_image_url && (
+        <FloatingAdvert imageUrl={s.advert_image_url} href={s.advert_href} alt={s.advert_alt} />
       )}
       {/* Nav */}
       <nav className="bg-[#000066] text-white px-6 py-4">
