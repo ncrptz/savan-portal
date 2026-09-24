@@ -13,11 +13,13 @@ interface Settings {
   hero_cta_label: string; hero_cta_href: string; offer_title: string; features: Feature[]
   popup_enabled: boolean; popup_title: string; popup_body: string
   popup_image_url: string | null; popup_cta_label: string; popup_cta_href: string
+  advert_enabled: boolean; advert_image_url: string | null; advert_href: string; advert_alt: string
 }
 const EMPTY: Settings = {
   site_name: '', hero_title: '', hero_subtitle: '',
   hero_image_url: null, hero_overlay: 70, logo_url: null, favicon_url: null, footer_text: '', footer_note: '', mid_image_url: null, mid_overlay: 88, hero_cta_label: '', hero_cta_href: '', offer_title: '', features: [],
   popup_enabled: false, popup_title: '', popup_body: '', popup_image_url: null, popup_cta_label: '', popup_cta_href: '',
+  advert_enabled: false, advert_image_url: null, advert_href: '', advert_alt: '',
 }
 
 export default function CmsPage() {
@@ -42,6 +44,7 @@ export default function CmsPage() {
         hero_image_url: data.hero_image_url, hero_overlay: data.hero_overlay ?? 70,
         logo_url: data.logo_url, favicon_url: data.favicon_url, footer_text: data.footer_text || '', footer_note: data.footer_note || '', mid_image_url: data.mid_image_url, mid_overlay: data.mid_overlay ?? 88, hero_cta_label: data.hero_cta_label || '', hero_cta_href: data.hero_cta_href || '', offer_title: data.offer_title || '', features: Array.isArray(data.features) ? data.features : [],
         popup_enabled: data.popup_enabled === true, popup_title: data.popup_title || '', popup_body: data.popup_body || '', popup_image_url: data.popup_image_url, popup_cta_label: data.popup_cta_label || '', popup_cta_href: data.popup_cta_href || '',
+        advert_enabled: data.advert_enabled === true, advert_image_url: data.advert_image_url, advert_href: data.advert_href || '', advert_alt: data.advert_alt || '',
       })
       setReady(true)
     })()
@@ -62,7 +65,7 @@ export default function CmsPage() {
     })
   }
 
-  async function upload(kind: 'logo' | 'favicon' | 'hero' | 'mid' | 'popup', file: File): Promise<string | null> {
+  async function upload(kind: 'logo' | 'favicon' | 'hero' | 'mid' | 'popup' | 'advert', file: File): Promise<string | null> {
     const sb = createClient()
     const ext = (file.name.split('.').pop() || 'png').toLowerCase()
     const path = `${kind}.${ext}`
@@ -72,7 +75,7 @@ export default function CmsPage() {
     return data?.publicUrl ? `${data.publicUrl}?t=${Date.now()}` : null
   }
 
-  async function onFile(kind: 'logo' | 'favicon' | 'hero' | 'mid' | 'popup', e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFile(kind: 'logo' | 'favicon' | 'hero' | 'mid' | 'popup' | 'advert', e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return
     setBusy(true); setErr(''); setMsg('')
     const url = await upload(kind, file)
@@ -82,6 +85,7 @@ export default function CmsPage() {
       else if (kind === 'favicon') set('favicon_url', url)
       else if (kind === 'mid') set('mid_image_url', url)
       else if (kind === 'popup') set('popup_image_url', url)
+      else if (kind === 'advert') set('advert_image_url', url)
       else set('hero_image_url', url)
       setMsg('Image uploaded — remember to Save.')
     }
@@ -96,6 +100,7 @@ export default function CmsPage() {
       hero_cta_label: s.hero_cta_label, hero_cta_href: s.hero_cta_href, offer_title: s.offer_title, features: s.features,
       popup_enabled: s.popup_enabled, popup_title: s.popup_title, popup_body: s.popup_body,
       popup_image_url: s.popup_image_url, popup_cta_label: s.popup_cta_label, popup_cta_href: s.popup_cta_href,
+      advert_enabled: s.advert_enabled, advert_image_url: s.advert_image_url, advert_href: s.advert_href, advert_alt: s.advert_alt,
       updated_at: new Date().toISOString(),
     }).eq('id', true).select()
     setBusy(false)
@@ -272,6 +277,33 @@ export default function CmsPage() {
             <div>
               <label className="label">Button link</label>
               <input className="input" value={s.popup_cta_href} onChange={e => set('popup_cta_href', e.target.value)} placeholder="/auth/register" />
+            </div>
+          </div>
+        </div>
+
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Floating advert</h2>
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+              <input type="checkbox" checked={s.advert_enabled} onChange={e => set('advert_enabled', e.target.checked)} className="w-4 h-4" />
+              Show on homepage
+            </label>
+          </div>
+          <p className="text-xs text-gray-500">A small dismissible image that floats at the bottom-right of the homepage. Editing it re-shows it to people who dismissed the previous one.</p>
+          <div>
+            <label className="label">Advert image</label>
+            <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('advert', e)} />
+            <Hint>Portrait or square works best, ~520×640px. JPG or PNG, under ~300KB. Shown ~260px wide.</Hint>
+            <Img url={s.advert_image_url} />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Link URL <span className="text-gray-400">(optional)</span></label>
+              <input className="input" value={s.advert_href} onChange={e => set('advert_href', e.target.value)} placeholder="https://example.com or /events" />
+            </div>
+            <div>
+              <label className="label">Alt text <span className="text-gray-400">(for accessibility)</span></label>
+              <input className="input" value={s.advert_alt} onChange={e => set('advert_alt', e.target.value)} placeholder="Sponsor promotion" />
             </div>
           </div>
         </div>
