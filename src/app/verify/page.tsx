@@ -3,7 +3,8 @@ import { formatCertDate } from '@/lib/date'
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Search, CheckCircle, XCircle, Shield } from 'lucide-react'
+import { Search, CheckCircle, XCircle } from 'lucide-react'
+import PublicNav from '@/components/PublicNav'
 
 function VerifyContent() {
   const params = useSearchParams()
@@ -35,16 +36,7 @@ function VerifyContent() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Nav */}
-      <nav className="bg-[#000066] text-white px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <Shield className="w-6 h-6" />
-            <span className="font-bold">SAVAN</span>
-          </Link>
-          <Link href="/auth/login" className="text-sm text-blue-200 hover:text-white">Admin Login</Link>
-        </div>
-      </nav>
+      <PublicNav />
 
       <div className="max-w-2xl mx-auto px-4 py-12">
         <h1 className="text-3xl font-bold text-[#000066] text-center mb-2">
