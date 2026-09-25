@@ -13,6 +13,8 @@ export default function NewEventPage() {
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1,
     session_in_month: 1,
+    cert_fee_enabled: false,
+    cert_fee_amount: 0,
     is_test: false,
   })
   const [orgs, setOrgs] = useState<{ id: string; name: string }[]>([])
@@ -149,6 +151,26 @@ export default function NewEventPage() {
             </p>
           </div>
         )}
+
+        <div className="p-4 border border-gray-200 rounded-lg space-y-3">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={form.cert_fee_enabled}
+              onChange={e=>set('cert_fee_enabled', e.target.checked)} className="w-4 h-4" />
+            <span className="text-sm font-medium text-gray-900">Charge a certificate access fee</span>
+          </label>
+          <p className="text-xs text-gray-500">
+            When on, participants must pay once to view/download their certificate from their dashboard.
+            When off, certificates are free to access. This is editable later.
+          </p>
+          {form.cert_fee_enabled && (
+            <div className="max-w-[220px]">
+              <label className="label">Fee amount (₦)</label>
+              <input type="number" min={0} className="input" value={form.cert_fee_amount}
+                onChange={e=>set('cert_fee_amount', Math.max(0, Math.floor(+e.target.value || 0)))}
+                placeholder="e.g. 2000" />
+            </div>
+          )}
+        </div>
 
         <label className="flex items-center gap-2 pt-2 cursor-pointer select-none">
           <input type="checkbox" checked={form.is_test}
