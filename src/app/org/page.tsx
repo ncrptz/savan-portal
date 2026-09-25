@@ -165,7 +165,7 @@ export default function OrgPortal() {
                             <td className="py-2 px-2 text-right whitespace-nowrap">
                               {c ? (
                                 <span className="inline-flex items-center gap-3">
-                                  {c.pdf_url && <a href={c.pdf_url} target="_blank" rel="noreferrer" className="text-[#000066] hover:underline inline-flex items-center gap-1">PDF <ExternalLink className="w-3 h-3" /></a>}
+                                  {c.cert_id && <a href={`/api/certificates/download?cid=${encodeURIComponent(c.cert_id)}`} target="_blank" rel="noreferrer" className="text-[#000066] hover:underline inline-flex items-center gap-1">PDF <ExternalLink className="w-3 h-3" /></a>}
                                   {c.verify_token && <Link href={`/verify?token=${c.verify_token}`} className="text-[#000066] hover:underline">Verify</Link>}
                                 </span>
                               ) : <span className="text-gray-300">—</span>}
