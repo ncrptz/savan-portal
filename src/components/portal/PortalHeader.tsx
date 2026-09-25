@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { Shield, LogOut, UserCog, LayoutDashboard, Calendar, Building2 } from 'lucide-react'
+import { Shield, LogOut, UserCog, LayoutDashboard, Calendar, Building2, GraduationCap } from 'lucide-react'
 
 export default function PortalHeader({ name }: { name: string }) {
   const router = useRouter()
@@ -36,12 +36,14 @@ export default function PortalHeader({ name }: { name: string }) {
   const home = isOrg ? '/org' : '/trainee'
   const tabs = isOrg
     ? [
-        { href: '/org',    label: 'Organisation',      icon: Building2 },
+        { href: '/org',    label: 'Organisation',       icon: Building2 },
         { href: '/events', label: 'Upcoming Trainings', icon: Calendar },
+        { href: '/learn',  label: 'Courses',            icon: GraduationCap },
       ]
     : [
         { href: '/trainee', label: 'My Trainings',       icon: LayoutDashboard },
         { href: '/events',  label: 'Upcoming Trainings', icon: Calendar },
+        { href: '/learn',   label: 'Courses',            icon: GraduationCap },
       ]
 
   return (
