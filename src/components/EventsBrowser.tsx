@@ -25,15 +25,17 @@ const FILTERS: { key: Filter; label: string }[] = [
 function startOfToday() {
   const d = new Date(); d.setHours(0, 0, 0, 0); return d
 }
+// "Past" is by the training date only — a completed event (certificates issued)
+// stays registerable if the admin left registration open. The registration_open
+// toggle is the single source of truth for whether people can still register.
 function isPast(ev: PublicEvent) {
-  if (ev.status === 'completed') return true
   const d = new Date(ev.training_date)
   return !isNaN(d.getTime()) && d < startOfToday()
 }
 function stateOf(ev: PublicEvent): { label: string; cls: string } {
+  if (ev.registration_open && !isPast(ev)) return { label: 'Open', cls: 'bg-green-100 text-green-700' }
   if (ev.status === 'completed') return { label: 'Completed', cls: 'bg-[#000066]/10 text-[#000066]' }
   if (isPast(ev)) return { label: 'Past', cls: 'bg-gray-100 text-gray-500' }
-  if (ev.registration_open) return { label: 'Open', cls: 'bg-green-100 text-green-700' }
   return { label: 'Closed', cls: 'bg-amber-100 text-amber-700' }
 }
 
