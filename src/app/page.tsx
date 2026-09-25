@@ -5,12 +5,18 @@ import { iconFor } from '@/lib/icons'
 import EventsPopup from '@/components/EventsPopup'
 import FloatingAdvert from '@/components/FloatingAdvert'
 import { createClient } from '@/lib/supabase/server'
+import { dashboardPath } from '@/lib/roles'
 
 export default async function HomePage() {
   const s = await getSettings()
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const loggedIn = !!user
+  let dashHref = '/trainee'
+  if (user) {
+    const { data: p } = await supabase.from('profiles').select('role').eq('user_id', user.id).single()
+    dashHref = dashboardPath(p?.role)
+  }
   // Signed-in visitors already have an account, so the "join a training" CTAs
   // send them straight to the event sign-up page instead of the register form.
   const joinHref = loggedIn ? '/events' : s.hero_cta_href
@@ -46,8 +52,8 @@ export default async function HomePage() {
             <Link href="/verify" className="text-sm hover:text-blue-200 transition-colors">
               Verify Certificate
             </Link>
-            <Link href="/auth/login" className="text-sm bg-white text-[#000066] px-4 py-1.5 rounded-lg hover:bg-blue-50 transition-colors font-medium">
-              Sign In
+            <Link href={loggedIn ? dashHref : '/auth/login'} className="text-sm bg-white text-[#000066] px-4 py-1.5 rounded-lg hover:bg-blue-50 transition-colors font-medium">
+              {loggedIn ? 'Dashboard' : 'Sign In'}
             </Link>
           </div>
         </div>
