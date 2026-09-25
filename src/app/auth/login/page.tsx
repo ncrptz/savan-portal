@@ -1,6 +1,7 @@
 'use client'
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { dashboardPath } from '@/lib/roles'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff } from 'lucide-react'
@@ -16,17 +17,23 @@ function LoginForm() {
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState('')
 
+  // Already signed in? Don't show the form again — go to the dashboard.
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data: profile } = await supabase.from('profiles').select('role').eq('user_id', user.id).single()
+      router.replace(redirectParam || dashboardPath(profile?.role))
+    })
+  }, [])
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault(); setLoading(true); setError('')
     const supabase = createClient()
     const { data, error: err } = await supabase.auth.signInWithPassword({ email, password })
     if (err) { setError(err.message); setLoading(false); return }
     const { data: profile } = await supabase.from('profiles').select('role').eq('user_id', data.user.id).single()
-    const role = profile?.role
-    if (redirectParam) router.push(redirectParam)
-    else if (role === 'trainee') router.push('/trainee')
-    else if (role === 'organisation') router.push('/org')
-    else router.push('/admin')
+    router.push(redirectParam || dashboardPath(profile?.role))
   }
 
   return (
