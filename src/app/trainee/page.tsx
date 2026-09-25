@@ -4,8 +4,13 @@ import PortalHeader from '@/components/portal/PortalHeader'
 import PendingClaim from '@/components/portal/PendingClaim'
 import RequestRelease from '@/components/portal/RequestRelease'
 import { formatCertDate } from '@/lib/date'
-import { Award, ExternalLink, CheckCircle } from 'lucide-react'
+import { Award, ExternalLink, CheckCircle, Lock } from 'lucide-react'
 import Link from 'next/link'
+import PayToUnlock from '@/components/portal/PayToUnlock'
+
+function one<T>(x: T | T[] | null | undefined): T | null {
+  return Array.isArray(x) ? (x[0] ?? null) : (x ?? null)
+}
 
 export default async function TraineePortal(
   { searchParams }: { searchParams: { welcome?: string } }
@@ -28,11 +33,18 @@ export default async function TraineePortal(
 
   const { data: certsData } = regIds.length
     ? await supabase.from('certificates')
-        .select('cert_id, issue_date, pdf_url, verify_token, registration_id')
+        .select('id, cert_id, issue_date, verify_token, registration_id, revoked, event:training_events(cert_fee_enabled, cert_fee_amount)')
         .in('registration_id', regIds)
     : { data: [] as any[] }
   const certByReg: Record<string, any> = {}
   ;((certsData as any[]) ?? []).forEach(c => { if (c.registration_id) certByReg[c.registration_id] = c })
+
+  // Which of the user's certificates are already paid for (RLS scopes to them).
+  const certIds = ((certsData as any[]) ?? []).map(c => c.id)
+  const { data: paysData } = certIds.length
+    ? await supabase.from('certificate_payments').select('certificate_id').eq('status', 'success').in('certificate_id', certIds)
+    : { data: [] as any[] }
+  const paidSet = new Set(((paysData as any[]) ?? []).map(p => p.certificate_id))
 
   const statusLabel = (s: string) =>
     s === 'certified' ? <span className="text-[#000066] font-medium">Certified</span>
@@ -68,19 +80,32 @@ export default async function TraineePortal(
                       {cert?.issue_date && <span className="text-gray-400"> · issued {formatCertDate(cert.issue_date)}</span>}
                     </p>
                   </div>
-                  {cert && (
-                    <div className="flex items-center gap-4 flex-shrink-0 text-sm">
-                      {cert.pdf_url && (
-                        <a href={cert.pdf_url} target="_blank" rel="noreferrer"
+                  {cert && (() => {
+                    const ev = one<{ cert_fee_enabled: boolean; cert_fee_amount: number }>(cert.event)
+                    const locked = !!ev?.cert_fee_enabled && !paidSet.has(cert.id)
+                    if (locked) {
+                      return (
+                        <div className="flex-shrink-0 text-right">
+                          <p className="text-xs text-amber-700 inline-flex items-center gap-1 mb-1 justify-end">
+                            <Lock className="w-3 h-3" />Certificate ready
+                          </p>
+                          <PayToUnlock certificateId={cert.id} amount={ev?.cert_fee_amount || 0} />
+                        </div>
+                      )
+                    }
+                    return (
+                      <div className="flex items-center gap-4 flex-shrink-0 text-sm">
+                        <a href={`/api/certificates/download?cid=${encodeURIComponent(cert.cert_id)}`}
+                          target="_blank" rel="noreferrer"
                           className="text-[#000066] hover:underline inline-flex items-center gap-1">
-                          PDF <ExternalLink className="w-3 h-3" />
+                          View / Download <ExternalLink className="w-3 h-3" />
                         </a>
-                      )}
-                      {cert.verify_token && (
-                        <Link href={`/verify?token=${cert.verify_token}`} className="text-[#000066] hover:underline">Verify</Link>
-                      )}
-                    </div>
-                  )}
+                        {cert.verify_token && (
+                          <Link href={`/verify?token=${cert.verify_token}`} className="text-[#000066] hover:underline">Verify</Link>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
               )
             })}
