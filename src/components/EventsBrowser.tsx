@@ -31,6 +31,7 @@ function isPast(ev: PublicEvent) {
   return !isNaN(d.getTime()) && d < startOfToday()
 }
 function stateOf(ev: PublicEvent): { label: string; cls: string } {
+  if (ev.status === 'completed') return { label: 'Completed', cls: 'bg-[#000066]/10 text-[#000066]' }
   if (isPast(ev)) return { label: 'Past', cls: 'bg-gray-100 text-gray-500' }
   if (ev.registration_open) return { label: 'Open', cls: 'bg-green-100 text-green-700' }
   return { label: 'Closed', cls: 'bg-amber-100 text-amber-700' }
