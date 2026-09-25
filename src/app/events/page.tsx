@@ -1,13 +1,12 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { getSettings } from '@/lib/settings'
-import { Shield, ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import EventsBrowser, { PublicEvent } from '@/components/EventsBrowser'
+import PublicNav from '@/components/PublicNav'
 
 export const dynamic = 'force-dynamic'
 
 export default async function EventsPage() {
-  const s = await getSettings()
   const supabase = await createClient()
 
   const { data: { user } } = await supabase.auth.getUser()
@@ -32,22 +31,7 @@ export default async function EventsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Nav */}
-      <nav className="bg-[#000066] text-white px-6 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-white rounded-full flex items-center justify-center overflow-hidden">
-              {s.logo_url
-                ? <img src={s.logo_url} alt="" className="w-full h-full object-contain" />
-                : <Shield className="w-5 h-5 text-[#000066]" />}
-            </div>
-            <span className="font-bold">{s.site_name}</span>
-          </Link>
-          {user
-            ? <Link href="/trainee" className="text-sm hover:text-blue-200">My dashboard</Link>
-            : <Link href="/auth/login" className="text-sm bg-white text-[#000066] px-4 py-1.5 rounded-lg font-medium hover:bg-blue-50">Sign In</Link>}
-        </div>
-      </nav>
+      <PublicNav />
 
       <div className="max-w-4xl mx-auto px-6 py-10">
         <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#000066] mb-6">
