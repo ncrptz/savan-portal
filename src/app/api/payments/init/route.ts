@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { getProvider } from '@/lib/payments/providers'
 
 export const dynamic = 'force-dynamic'
 
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
   })
   if (insErr) return NextResponse.json({ error: insErr.message }, { status: 500 })
 
-  // Stage 2 test-mode: unlock immediately, no gateway.
+  // Test-mode: unlock immediately, no gateway (remove PAYMENTS_TEST_MODE for live).
   if (process.env.PAYMENTS_TEST_MODE === 'true') {
     await admin.from('certificate_payments')
       .update({ status: 'success', paid_at: new Date().toISOString() })
@@ -63,8 +64,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, unlocked: true, testMode: true })
   }
 
-  // Stage 3 will initialise the chosen gateway here and return { checkoutUrl }.
-  return NextResponse.json({
-    error: 'Payment gateway is not configured yet. The certificate fee is set, but card payment goes live once the payment keys are added.',
-  }, { status: 501 })
+  // Live gateway: initialise a hosted checkout and hand back its URL.
+  const gw = getProvider(provider)
+  if (!gw || !gw.configured()) {
+    return NextResponse.json({
+      error: 'Card payment is not available yet — the gateway keys have not been added.',
+    }, { status: 501 })
+  }
+  try {
+    const callbackUrl = `${req.nextUrl.origin}/api/payments/callback`
+    const { checkoutUrl } = await gw.initialize({
+      reference, amountNaira: amount, email: user.email || '',
+      callbackUrl, metadata: { certificate_id: cert.id, user_id: user.id, cert_ref: cert.cert_id },
+    })
+    return NextResponse.json({ checkoutUrl })
+  } catch (e: any) {
+    // Roll the pending row back to failed so a retry starts clean.
+    await admin.from('certificate_payments').update({ status: 'failed' }).eq('reference', reference)
+    return NextResponse.json({ error: e?.message || 'Could not start the payment.' }, { status: 502 })
+  }
 }
