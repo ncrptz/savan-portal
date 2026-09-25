@@ -16,6 +16,8 @@ interface EventForm {
   year: number
   month: number
   session_in_month: number
+  cert_fee_enabled: boolean
+  cert_fee_amount: number
   is_test: boolean
 }
 
@@ -26,6 +28,8 @@ const EMPTY: EventForm = {
   year: new Date().getFullYear(),
   month: new Date().getMonth() + 1,
   session_in_month: 1,
+  cert_fee_enabled: false,
+  cert_fee_amount: 0,
   is_test: false,
 }
 
@@ -49,7 +53,7 @@ export default function EditEventPage() {
     const supabase = createClient()
     supabase
       .from('training_events')
-      .select('title, training_date, venue, template_type, sponsored_by, collab_org_id, collab_signer_name, collab_signer_title, year, month, session_in_month, is_test')
+      .select('title, training_date, venue, template_type, sponsored_by, collab_org_id, collab_signer_name, collab_signer_title, year, month, session_in_month, cert_fee_enabled, cert_fee_amount, is_test')
       .eq('id', eventId)
       .single()
       .then(({ data, error: err }) => {
@@ -67,6 +71,8 @@ export default function EditEventPage() {
             year: data.year ?? EMPTY.year,
             month: data.month ?? EMPTY.month,
             session_in_month: data.session_in_month ?? 1,
+            cert_fee_enabled: data.cert_fee_enabled ?? false,
+            cert_fee_amount: data.cert_fee_amount ?? 0,
             is_test: data.is_test ?? false,
           })
         }
@@ -96,6 +102,8 @@ export default function EditEventPage() {
         year: form.year,
         month: form.month,
         session_in_month: form.session_in_month,
+        cert_fee_enabled: form.cert_fee_enabled,
+        cert_fee_amount: form.cert_fee_amount,
         is_test: form.is_test,
       })
       .eq('id', eventId)
@@ -209,6 +217,26 @@ export default function EditEventPage() {
             </p>
           </div>
         )}
+
+        <div className="p-4 border border-gray-200 rounded-lg space-y-3">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={form.cert_fee_enabled}
+              onChange={e=>set('cert_fee_enabled', e.target.checked)} className="w-4 h-4" />
+            <span className="text-sm font-medium text-gray-900">Charge a certificate access fee</span>
+          </label>
+          <p className="text-xs text-gray-500">
+            When on, participants must pay once to view/download their certificate from their dashboard.
+            When off, certificates are free to access.
+          </p>
+          {form.cert_fee_enabled && (
+            <div className="max-w-[220px]">
+              <label className="label">Fee amount (₦)</label>
+              <input type="number" min={0} className="input" value={form.cert_fee_amount}
+                onChange={e=>set('cert_fee_amount', Math.max(0, Math.floor(+e.target.value || 0)))}
+                placeholder="e.g. 2000" />
+            </div>
+          )}
+        </div>
 
         <label className="flex items-center gap-2 pt-2 cursor-pointer select-none">
           <input type="checkbox" checked={form.is_test}
