@@ -115,8 +115,8 @@ export default function CertificatesPage() {
                   </td>
                   <td className="px-4 py-3">{statusBadge(c.status)}</td>
                   <td className="px-4 py-3">
-                    {c.pdf_url
-                      ? <a href={c.pdf_url} target="_blank" rel="noreferrer"
+                    {c.cert_id
+                      ? <a href={`/api/certificates/download?cid=${encodeURIComponent(c.cert_id)}`} target="_blank" rel="noreferrer"
                            className="inline-flex items-center gap-1 text-[#000066] hover:underline">
                           Open <ExternalLink className="w-3 h-3" />
                         </a>
