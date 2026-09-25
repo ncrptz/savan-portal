@@ -27,8 +27,14 @@ export default async function EventDetailPage({ params }: { params: { id: string
         <div>
           <Link href="/admin/events" className="text-sm text-gray-500 hover:text-gray-700">← Events</Link>
           <h1 className="text-2xl font-bold text-gray-900 mt-1">{event.title}</h1>
-          <div className="flex items-center gap-3 mt-2">
-            <span className={`badge-${event.status}`}>{event.status}</span>
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">
+              {event.status === 'completed' ? 'Certificates issued' : event.status}
+            </span>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+              event.registration_open ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+              {event.registration_open ? 'Registration open' : 'Registration closed'}
+            </span>
             <span className="text-sm text-gray-500">Serial: <span className="font-mono">{event.event_serial}</span></span>
             <span className="text-sm text-gray-500">{event.template_type}</span>
           </div>
