@@ -54,6 +54,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
             <Row label="Venue" value={event.venue || '—'} />
             <Row label="Batch" value={`${event.year}/${String(event.month).padStart(2,'0')}${event.session_in_month}`} />
             {event.sponsored_by && <Row label="Sponsored by" value={event.sponsored_by} />}
+            <Row label="Certificate fee" value={event.cert_fee_enabled ? `₦${(event.cert_fee_amount ?? 0).toLocaleString()}` : 'Free'} />
           </dl>
         </div>
 
@@ -125,10 +126,8 @@ export default async function EventDetailPage({ params }: { params: { id: string
                       <div className="flex gap-3">
                         <Link href={`/verify?q=${c.cert_id}`} target="_blank"
                           className="text-[#000066] hover:underline text-xs">Verify</Link>
-                        {c.pdf_url && (
-                          <a href={c.pdf_url} target="_blank"
-                            className="text-[#000066] hover:underline text-xs">PDF</a>
-                        )}
+                        <a href={`/api/certificates/download?cid=${encodeURIComponent(c.cert_id)}`} target="_blank"
+                          className="text-[#000066] hover:underline text-xs">PDF</a>
                       </div>
                     </td>
                   </tr>
