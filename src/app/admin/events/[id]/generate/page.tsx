@@ -465,8 +465,8 @@ export default function GeneratePage() {
                       className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="Verify">
                       <Eye className="w-4 h-4" />
                     </a>
-                    {r.pdf_url && (
-                      <a href={r.pdf_url} target="_blank" rel="noopener noreferrer"
+                    {r.cert_id && (
+                      <a href={`/api/certificates/download?cid=${encodeURIComponent(r.cert_id)}`} target="_blank" rel="noopener noreferrer"
                         className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="Download PDF">
                         <Download className="w-4 h-4" />
                       </a>
