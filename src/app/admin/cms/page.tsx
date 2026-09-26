@@ -1,328 +1,72 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import { CheckCircle, Image as ImageIcon, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
-import { ICON_NAMES, iconFor } from '@/lib/icons'
-import type { Feature } from '@/lib/settings'
+import { createClient } from '@/lib/supabase/server'
+import Link from 'next/link'
+import { Plus, Calendar, Users, ChevronRight } from 'lucide-react'
 
-interface Settings {
-  site_name: string; hero_title: string; hero_subtitle: string
-  hero_image_url: string | null; hero_overlay: number
-  logo_url: string | null; favicon_url: string | null; footer_text: string; footer_note: string
-  mid_image_url: string | null; mid_overlay: number
-  hero_cta_label: string; hero_cta_href: string; offer_title: string; features: Feature[]
-  popup_enabled: boolean; popup_title: string; popup_body: string
-  popup_image_url: string | null; popup_cta_label: string; popup_cta_href: string
-  advert_enabled: boolean; advert_image_url: string | null; advert_href: string; advert_alt: string
-}
-const EMPTY: Settings = {
-  site_name: '', hero_title: '', hero_subtitle: '',
-  hero_image_url: null, hero_overlay: 70, logo_url: null, favicon_url: null, footer_text: '', footer_note: '', mid_image_url: null, mid_overlay: 88, hero_cta_label: '', hero_cta_href: '', offer_title: '', features: [],
-  popup_enabled: false, popup_title: '', popup_body: '', popup_image_url: null, popup_cta_label: '', popup_cta_href: '',
-  advert_enabled: false, advert_image_url: null, advert_href: '', advert_alt: '',
-}
-
-export default function CmsPage() {
-  const [role, setRole] = useState<string | null>(null)
-  const [ready, setReady] = useState(false)
-  const [s, setS] = useState<Settings>(EMPTY)
-  const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState('')
-  const [err, setErr] = useState('')
-
-  useEffect(() => {
-    (async () => {
-      const sb = createClient()
-      const { data: { user } } = await sb.auth.getUser()
-      if (user) {
-        const { data: p } = await sb.from('profiles').select('role').eq('user_id', user.id).single()
-        setRole(p?.role ?? null)
-      }
-      const { data } = await sb.from('site_settings').select('*').eq('id', true).single()
-      if (data) setS({
-        site_name: data.site_name || '', hero_title: data.hero_title || '', hero_subtitle: data.hero_subtitle || '',
-        hero_image_url: data.hero_image_url, hero_overlay: data.hero_overlay ?? 70,
-        logo_url: data.logo_url, favicon_url: data.favicon_url, footer_text: data.footer_text || '', footer_note: data.footer_note || '', mid_image_url: data.mid_image_url, mid_overlay: data.mid_overlay ?? 88, hero_cta_label: data.hero_cta_label || '', hero_cta_href: data.hero_cta_href || '', offer_title: data.offer_title || '', features: Array.isArray(data.features) ? data.features : [],
-        popup_enabled: data.popup_enabled === true, popup_title: data.popup_title || '', popup_body: data.popup_body || '', popup_image_url: data.popup_image_url, popup_cta_label: data.popup_cta_label || '', popup_cta_href: data.popup_cta_href || '',
-        advert_enabled: data.advert_enabled === true, advert_image_url: data.advert_image_url, advert_href: data.advert_href || '', advert_alt: data.advert_alt || '',
-      })
-      setReady(true)
-    })()
-  }, [])
-
-  function set<K extends keyof Settings>(k: K, v: Settings[K]) { setS(prev => ({ ...prev, [k]: v })) }
-  function setFeature(i: number, patch: Partial<Feature>) {
-    setS(prev => ({ ...prev, features: prev.features.map((f, j) => j === i ? { ...f, ...patch } : f) }))
-  }
-  function addFeature() { setS(prev => ({ ...prev, features: [...prev.features, { icon: 'Award', title: '', desc: '' }] })) }
-  function removeFeature(i: number) { setS(prev => ({ ...prev, features: prev.features.filter((_, j) => j !== i) })) }
-  function moveFeature(i: number, dir: -1 | 1) {
-    setS(prev => {
-      const arr = [...prev.features]; const j = i + dir
-      if (j < 0 || j >= arr.length) return prev
-      ;[arr[i], arr[j]] = [arr[j], arr[i]]
-      return { ...prev, features: arr }
-    })
-  }
-
-  async function upload(kind: 'logo' | 'favicon' | 'hero' | 'mid' | 'popup' | 'advert', file: File): Promise<string | null> {
-    const sb = createClient()
-    const ext = (file.name.split('.').pop() || 'png').toLowerCase()
-    const path = `${kind}.${ext}`
-    const { error } = await sb.storage.from('cms').upload(path, file, { upsert: true, contentType: file.type || 'image/png' })
-    if (error) { setErr(error.message); return null }
-    const { data } = sb.storage.from('cms').getPublicUrl(path)
-    return data?.publicUrl ? `${data.publicUrl}?t=${Date.now()}` : null
-  }
-
-  async function onFile(kind: 'logo' | 'favicon' | 'hero' | 'mid' | 'popup' | 'advert', e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; if (!file) return
-    setBusy(true); setErr(''); setMsg('')
-    const url = await upload(kind, file)
-    setBusy(false)
-    if (url) {
-      if (kind === 'logo') set('logo_url', url)
-      else if (kind === 'favicon') set('favicon_url', url)
-      else if (kind === 'mid') set('mid_image_url', url)
-      else if (kind === 'popup') set('popup_image_url', url)
-      else if (kind === 'advert') set('advert_image_url', url)
-      else set('hero_image_url', url)
-      setMsg('Image uploaded — remember to Save.')
-    }
-  }
-
-  async function save() {
-    setBusy(true); setErr(''); setMsg('')
-    const { data, error } = await createClient().from('site_settings').update({
-      site_name: s.site_name, hero_title: s.hero_title, hero_subtitle: s.hero_subtitle,
-      hero_image_url: s.hero_image_url, hero_overlay: s.hero_overlay,
-      logo_url: s.logo_url, favicon_url: s.favicon_url, footer_text: s.footer_text, footer_note: s.footer_note, mid_image_url: s.mid_image_url, mid_overlay: s.mid_overlay,
-      hero_cta_label: s.hero_cta_label, hero_cta_href: s.hero_cta_href, offer_title: s.offer_title, features: s.features,
-      popup_enabled: s.popup_enabled, popup_title: s.popup_title, popup_body: s.popup_body,
-      popup_image_url: s.popup_image_url, popup_cta_label: s.popup_cta_label, popup_cta_href: s.popup_cta_href,
-      advert_enabled: s.advert_enabled, advert_image_url: s.advert_image_url, advert_href: s.advert_href, advert_alt: s.advert_alt,
-      updated_at: new Date().toISOString(),
-    }).eq('id', true).select()
-    setBusy(false)
-    if (error) { setErr(error.message); return }
-    if (!data || data.length === 0) { setErr('Save did not apply (no rows updated). Check your permissions.'); return }
-    setMsg('Saved. Public pages update on their next load.')
-  }
-
-  if (!ready) return <div className="text-center py-12 text-gray-400 text-sm">Loading…</div>
-  if (role !== 'superadmin')
-    return <div className="max-w-xl mx-auto card text-center text-gray-600">Site content is managed by superadmins only.</div>
-
-  const Hint = ({ children }: { children: React.ReactNode }) =>
-    <p className="text-xs text-gray-400 mt-1">{children}</p>
-
-  const Img = ({ url }: { url: string | null }) => url
-    ? <img src={url} alt="" className="h-12 object-contain rounded bg-gray-50 border border-gray-100 mt-2" />
-    : <div className="h-12 w-12 rounded bg-gray-100 flex items-center justify-center mt-2"><ImageIcon className="w-5 h-5 text-gray-300" /></div>
+export default async function EventsPage() {
+  const supabase = await createClient()
+  const { data: events } = await supabase
+    .from('training_events')
+    .select('*, organisation:organisations(name)')
+    .order('created_at', { ascending: false })
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">Site content</h1>
-      <p className="text-sm text-gray-500 mb-6">Branding and homepage content for the public site.</p>
-      {msg && <p className="text-sm text-green-700 mb-3 flex items-center gap-1.5"><CheckCircle className="w-4 h-4" />{msg}</p>}
-      {err && <p className="text-sm text-red-600 mb-3">{err}</p>}
-
-      <div className="space-y-6">
-        <div className="card space-y-4">
-          <h2 className="font-semibold text-gray-900">Branding</h2>
-          <div>
-            <label className="label">Site name</label>
-            <input className="input" value={s.site_name} onChange={e => set('site_name', e.target.value)} />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="label">Logo</label>
-              <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('logo', e)} />
-              <Hint>Square PNG with a transparent background, ~256×256px. Shown at 40×40px in the header.</Hint>
-              <Img url={s.logo_url} />
-            </div>
-            <div>
-              <label className="label">Favicon <span className="text-gray-400">(browser tab icon)</span></label>
-              <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('favicon', e)} />
-              <Hint>Square PNG, 64×64px or larger. Keep it a simple mark — it renders tiny in the browser tab.</Hint>
-              <Img url={s.favicon_url} />
-            </div>
-          </div>
+    <div className="max-w-5xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Training Events</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{events?.length ?? 0} events</p>
         </div>
+        <Link href="/admin/events/new" className="btn-primary flex items-center gap-2">
+          <Plus className="w-4 h-4" />New Event
+        </Link>
+      </div>
 
-        <div className="card space-y-4">
-          <h2 className="font-semibold text-gray-900">Homepage hero</h2>
-          <div>
-            <label className="label">Headline</label>
-            <input className="input" value={s.hero_title} onChange={e => set('hero_title', e.target.value)} />
-          </div>
-          <div>
-            <label className="label">Subtitle</label>
-            <textarea className="input" rows={2} value={s.hero_subtitle} onChange={e => set('hero_subtitle', e.target.value)} />
-          </div>
-          <div>
-            <label className="label">Background image <span className="text-gray-400">(e.g. a BLS training photo)</span></label>
-            <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('hero', e)} />
-            <Hint>Landscape, ~1920×1080px (16:9). JPG, under ~500KB. Faces/detail sit centre — the sides may crop on small screens.</Hint>
-            <Img url={s.hero_image_url} />
-          </div>
-          <div>
-            <label className="label">Image fade — {s.hero_overlay}% overlay</label>
-            <input type="range" min={0} max={100} value={s.hero_overlay}
-              onChange={e => set('hero_overlay', Number(e.target.value))} className="w-full" />
-            <p className="text-xs text-gray-400">Higher = darker blue overlay so the text stays readable. 0 shows the image fully.</p>
-          </div>
-        </div>
-
-        <div className="card space-y-4">
-          <h2 className="font-semibold text-gray-900">Homepage buttons</h2>
-          <p className="text-xs text-gray-500">The second hero button. (The first, &quot;Verify a Certificate&quot;, is fixed.)</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="label">Button label</label>
-              <input className="input" value={s.hero_cta_label} onChange={e => set('hero_cta_label', e.target.value)} placeholder="Register as Trainee" />
-            </div>
-            <div>
-              <label className="label">Button link</label>
-              <input className="input" value={s.hero_cta_href} onChange={e => set('hero_cta_href', e.target.value)} placeholder="/auth/register" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">&quot;What We Offer&quot; section</h2>
-            <button onClick={addFeature} type="button" className="text-sm text-[#000066] hover:underline inline-flex items-center gap-1">
-              <Plus className="w-4 h-4" />Add card
-            </button>
-          </div>
-          <div>
-            <label className="label">Section heading</label>
-            <input className="input" value={s.offer_title} onChange={e => set('offer_title', e.target.value)} placeholder="What We Offer" />
-          </div>
-          <div className="space-y-3">
-            {s.features.map((f, i) => {
-              const Icon = iconFor(f.icon)
-              return (
-                <div key={i} className="border border-gray-100 rounded-lg p-3">
-                  <div className="flex items-start gap-3">
-                    <div className="flex flex-col items-center gap-1 pt-1">
-                      <button type="button" onClick={() => moveFeature(i, -1)} disabled={i === 0} className="text-gray-400 hover:text-gray-700 disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
-                      <Icon className="w-6 h-6 text-[#000066]" />
-                      <button type="button" onClick={() => moveFeature(i, 1)} disabled={i === s.features.length - 1} className="text-gray-400 hover:text-gray-700 disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <div className="flex gap-2">
-                        <select className="input text-sm py-1.5 w-40" value={f.icon} onChange={e => setFeature(i, { icon: e.target.value })}>
-                          {ICON_NAMES.map(n => <option key={n} value={n}>{n}</option>)}
-                        </select>
-                        <input className="input text-sm py-1.5 flex-1" value={f.title} onChange={e => setFeature(i, { title: e.target.value })} placeholder="Card title" />
-                        <button type="button" onClick={() => removeFeature(i)} className="text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
-                      </div>
-                      <textarea className="input text-sm py-1.5" rows={2} value={f.desc} onChange={e => setFeature(i, { desc: e.target.value })} placeholder="Card description" />
-                    </div>
-                  </div>
+      <div className="space-y-3">
+        {events?.map(ev => (
+          <Link key={ev.id} href={`/admin/events/${ev.id}`}
+            className="card hover:shadow-md transition-shadow flex items-center justify-between p-4">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Calendar className="w-5 h-5 text-[#000066]" />
+              </div>
+              <div>
+                <div className="font-semibold text-gray-900">{ev.title}</div>
+                <div className="text-sm text-gray-500 mt-0.5">
+                  {new Date(ev.training_date).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}
+                  {ev.venue ? ` · ${ev.venue}` : ''}
+                  {' · '}{ev.template_type}
+                  {ev.organisation ? ` · ${ev.organisation.name}` : ''}
                 </div>
-              )
-            })}
-            {s.features.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No cards. Use &quot;Add card&quot; to create one.</p>}
-          </div>
-        </div>
-
-        <div className="card space-y-4">
-          <h2 className="font-semibold text-gray-900">Mid-page background</h2>
-          <p className="text-xs text-gray-500">A fixed image shown behind the Quick Verification and What We Offer sections as visitors scroll.</p>
-          <div>
-            <label className="label">Background image</label>
-            <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('mid', e)} />
-            <Hint>Landscape, ~1920×1080px. JPG, under ~500KB. It stays fixed while visitors scroll, so avoid busy images — a calm photo reads best under the overlay.</Hint>
-            <Img url={s.mid_image_url} />
-          </div>
-          <div>
-            <label className="label">Lighten — {s.mid_overlay}% white overlay</label>
-            <input type="range" min={0} max={100} value={s.mid_overlay}
-              onChange={e => set('mid_overlay', Number(e.target.value))} className="w-full" />
-            <p className="text-xs text-gray-400">Higher = whiter (content stays readable). Lower shows more of the image.</p>
-          </div>
-        </div>
-
-        <div className="card space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">Events popup</h2>
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-              <input type="checkbox" checked={s.popup_enabled} onChange={e => set('popup_enabled', e.target.checked)} className="w-4 h-4" />
-              Show on homepage
-            </label>
-          </div>
-          <p className="text-xs text-gray-500">A dismissible announcement shown to homepage visitors. Editing it re-shows it to people who already dismissed the previous one.</p>
-          <div>
-            <label className="label">Title</label>
-            <input className="input" value={s.popup_title} onChange={e => set('popup_title', e.target.value)} placeholder="Upcoming BLS Training" />
-          </div>
-          <div>
-            <label className="label">Body</label>
-            <textarea className="input" rows={3} value={s.popup_body} onChange={e => set('popup_body', e.target.value)} placeholder="Join our next in-person BLS/AED session on 12 October in Benin City. Limited seats." />
-          </div>
-          <div>
-            <label className="label">Image <span className="text-gray-400">(optional banner)</span></label>
-            <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('popup', e)} />
-            <Hint>Landscape banner, ~800×450px (16:9). JPG or PNG, under ~300KB. Shown across the top of the popup card.</Hint>
-            <Img url={s.popup_image_url} />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="label">Button label</label>
-              <input className="input" value={s.popup_cta_label} onChange={e => set('popup_cta_label', e.target.value)} placeholder="Register Now" />
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">
+                    {ev.status === 'completed' ? 'Certificates issued' : ev.status}
+                  </span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    ev.registration_open ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {ev.registration_open ? 'Registration open' : 'Registration closed'}
+                  </span>
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <Users className="w-3 h-3" />{ev.participant_count} participants
+                  </span>
+                  <span className="text-xs font-mono text-gray-400">
+                    Serial {ev.event_serial}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div>
-              <label className="label">Button link</label>
-              <input className="input" value={s.popup_cta_href} onChange={e => set('popup_cta_href', e.target.value)} placeholder="/auth/register" />
-            </div>
-          </div>
-        </div>
+            <ChevronRight className="w-5 h-5 text-gray-300 flex-shrink-0" />
+          </Link>
+        ))}
 
-        <div className="card space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold text-gray-900">Floating advert</h2>
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-              <input type="checkbox" checked={s.advert_enabled} onChange={e => set('advert_enabled', e.target.checked)} className="w-4 h-4" />
-              Show on homepage
-            </label>
+        {!events?.length && (
+          <div className="card text-center py-12">
+            <Calendar className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+            <p className="text-gray-500">No training events yet.</p>
+            <Link href="/admin/events/new" className="btn-primary inline-block mt-4">
+              Create First Event
+            </Link>
           </div>
-          <p className="text-xs text-gray-500">A small dismissible image that floats at the bottom-right of the homepage. Editing it re-shows it to people who dismissed the previous one.</p>
-          <div>
-            <label className="label">Advert image</label>
-            <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={e => onFile('advert', e)} />
-            <Hint>Portrait or square works best, ~520×640px. JPG or PNG, under ~300KB. Shown ~260px wide.</Hint>
-            <Img url={s.advert_image_url} />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="label">Link URL <span className="text-gray-400">(optional)</span></label>
-              <input className="input" value={s.advert_href} onChange={e => set('advert_href', e.target.value)} placeholder="https://example.com or /events" />
-            </div>
-            <div>
-              <label className="label">Alt text <span className="text-gray-400">(for accessibility)</span></label>
-              <input className="input" value={s.advert_alt} onChange={e => set('advert_alt', e.target.value)} placeholder="Sponsor promotion" />
-            </div>
-          </div>
-        </div>
-
-        <div className="card space-y-4">
-          <h2 className="font-semibold text-gray-900">Footer</h2>
-          <div>
-            <label className="label">Footer text</label>
-            <input className="input" value={s.footer_text} onChange={e => set('footer_text', e.target.value)} />
-          </div>
-          <div>
-            <label className="label">Footer sub-line <span className="text-gray-400">(e.g. "Portal managed by …")</span></label>
-            <input className="input" value={s.footer_note} onChange={e => set('footer_note', e.target.value)} />
-          </div>
-        </div>
-
-        <button onClick={save} disabled={busy} className="btn-primary px-8">
-          {busy ? 'Saving…' : 'Save changes'}
-        </button>
+        )}
       </div>
     </div>
   )
