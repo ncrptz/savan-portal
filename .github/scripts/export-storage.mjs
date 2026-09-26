@@ -1,57 +1,65 @@
-name: Supabase Backup
+// Export every Supabase Storage bucket to ./backup/storage/<bucket>/<path>.
+// Uses the service-role key (full read) and only Node's built-in fetch (Node 18+).
+// Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY.
+import { mkdir, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 
-# Weekly automated backup of the Supabase database + storage buckets.
-# The archive is AES-256 encrypted before it is stored, so it is safe even
-# though this repository is public. Trigger manually any time from the
-# Actions tab ("Run workflow").
+const URL = process.env.SUPABASE_URL
+const KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+if (!URL || !KEY) {
+  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+  process.exit(1)
+}
+const h = { Authorization: `Bearer ${KEY}`, apikey: KEY }
 
-on:
-  schedule:
-    - cron: '17 2 * * 0'   # every Sunday 02:17 UTC (03:17 Lagos)
-  workflow_dispatch: {}
+async function listBuckets() {
+  const r = await fetch(`${URL}/storage/v1/bucket`, { headers: h })
+  if (!r.ok) throw new Error(`list buckets: ${r.status} ${await r.text()}`)
+  return r.json()
+}
 
-jobs:
-  backup:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+// Recursively list every object path in a bucket. Folders come back with a
+// null id/metadata — we recurse into those; real files we collect.
+async function listAll(bucket, prefix = '') {
+  const out = []
+  const limit = 100
+  let offset = 0
+  for (;;) {
+    const r = await fetch(`${URL}/storage/v1/object/list/${bucket}`, {
+      method: 'POST',
+      headers: { ...h, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix, limit, offset, sortBy: { column: 'name', order: 'asc' } }),
+    })
+    if (!r.ok) throw new Error(`list ${bucket}/${prefix}: ${r.status} ${await r.text()}`)
+    const items = await r.json()
+    if (!items.length) break
+    for (const it of items) {
+      const path = prefix ? `${prefix}/${it.name}` : it.name
+      if (it.id === null || it.metadata === null) out.push(...await listAll(bucket, path))
+      else out.push(path)
+    }
+    if (items.length < limit) break
+    offset += limit
+  }
+  return out
+}
 
-      - name: Install pg_dump (v17)
-        run: |
-          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
+async function download(bucket, path, dest) {
+  const r = await fetch(`${URL}/storage/v1/object/${bucket}/${encodeURI(path)}`, { headers: h })
+  if (!r.ok) throw new Error(`download ${bucket}/${path}: ${r.status}`)
+  const buf = Buffer.from(await r.arrayBuffer())
+  await mkdir(dirname(dest), { recursive: true })
+  await writeFile(dest, buf)
+}
 
-      - name: Dump database
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: |
-          mkdir -p backup
-          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges -f backup/database.sql
-          echo "Database dump size: $(du -h backup/database.sql | cut -f1)"
-
-      - name: Export storage buckets
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        run: node .github/scripts/export-storage.mjs
-
-      - name: Archive and encrypt
-        env:
-          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
-        run: |
-          STAMP=$(date -u +%Y%m%d-%H%M)
-          tar -czf backup.tar.gz -C backup .
-          gpg --batch --yes --symmetric --cipher-algo AES256 \
-            --passphrase "$BACKUP_PASSPHRASE" \
-            -o "savan-backup-$STAMP.tar.gz.gpg" backup.tar.gz
-          rm -rf backup backup.tar.gz
-          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
-
-      - name: Upload encrypted backup
-        uses: actions/upload-artifact@v4
-        with:
-          name: savan-backup-${{ env.STAMP }}
-          path: "*.tar.gz.gpg"
-          retention-days: 90
+const buckets = await listBuckets()
+let total = 0
+for (const b of buckets) {
+  const paths = await listAll(b.name)
+  for (const p of paths) {
+    await download(b.name, p, join('backup', 'storage', b.name, p))
+    total++
+  }
+  console.log(`bucket ${b.name}: ${paths.length} objects`)
+}
+console.log(`Total objects backed up: ${total}`)
