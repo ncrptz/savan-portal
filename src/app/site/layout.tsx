@@ -11,7 +11,7 @@ const PORTAL = 'https://verify.savan-ngo.org'
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="savan-site">
-      <style>{CSS}</style>
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
       <header className="s-header">
         <div className="s-wrap s-nav">
           <Link href="/" className="s-brand">
@@ -99,7 +99,7 @@ const CSS = `
 
 .s-metro{background:#05053a;padding:30px 0 34px;overflow:hidden}
 .s-metro h2{color:#fff;font-size:1.1rem;margin:0 0 3px}
-.s-metro .s-wrap>p{color:#9aa2e0;font-size:.9rem;margin-bottom:18px}
+.s-metro .s-wrap p{color:#9aa2e0;font-size:.9rem;margin-bottom:18px}
 .s-marquee{position:relative;width:100%;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent);mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent)}
 .s-mtrack{display:grid;grid-auto-flow:column dense;grid-template-rows:repeat(2,160px);grid-auto-columns:160px;gap:10px;width:max-content;animation:s-scroll 70s linear infinite}
 .s-metro:hover .s-mtrack{animation-play-state:paused}
