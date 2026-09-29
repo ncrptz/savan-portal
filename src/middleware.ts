@@ -2,6 +2,19 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  // --- Apex host (main marketing site) serves the /site routes ---
+  const host = (request.headers.get('host') || '').split(':')[0].toLowerCase()
+  const isApex = host === 'savan-ngo.org' || host === 'www.savan-ngo.org'
+  if (isApex) {
+    const p = request.nextUrl.pathname
+    if (p.startsWith('/_next') || p.startsWith('/api') || p.startsWith('/site')) {
+      return NextResponse.next()
+    }
+    const url = request.nextUrl.clone()
+    url.pathname = `/site${p === '/' ? '' : p}`
+    return NextResponse.rewrite(url)
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
