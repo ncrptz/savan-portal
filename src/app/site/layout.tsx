@@ -79,9 +79,14 @@ const CSS = `
 .s-cta:hover{filter:brightness(1.08)}
 @media(max-width:520px){.s-brand small{display:none}.s-tab{display:none}}
 
-.s-hero{background:linear-gradient(160deg,#000066,#0a0a80 55%,#141499);color:#fff;position:relative;overflow:hidden}
-.s-hero::after{content:"";position:absolute;inset:0;background:radial-gradient(600px 300px at 82% 8%,rgba(200,16,46,.28),transparent 70%);pointer-events:none}
-.s-hero .s-wrap{position:relative;padding:52px 20px 56px}
+.s-hero{position:relative;color:#fff;overflow:hidden;background:#000066}
+.s-hero .s-bg{position:absolute;inset:0;background-position:center;background-size:cover}
+.s-hero .s-ov{position:absolute;inset:0;background:linear-gradient(105deg,rgba(0,0,80,.95),rgba(0,0,90,.86) 42%,rgba(10,10,120,.55))}
+.s-hero .s-ov2{position:absolute;inset:0;background:radial-gradient(700px 320px at 85% 15%,rgba(200,16,46,.32),transparent 70%)}
+.s-hero .s-wrap{position:relative;padding:72px 20px 80px}
+.s-stats{display:flex;flex-wrap:wrap;gap:2.4rem;margin-top:2.6rem}
+.s-stats b{display:block;font-size:1.6rem;font-weight:800;color:#fff}
+.s-stats span{font-size:.8rem;color:#b9c0ee}
 .s-pill{display:inline-block;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#dfe3ff;font-size:.76rem;font-weight:600;padding:.35rem .8rem;border-radius:999px}
 .s-hero h1{font-size:clamp(2rem,6.5vw,3.4rem);line-height:1.08;margin:.9rem 0 .6rem;font-weight:800;letter-spacing:-.02em}
 .s-hero p.s-lede{font-size:clamp(1rem,2.4vw,1.18rem);color:#d7dcff;max-width:640px;margin-bottom:1.7rem}
@@ -92,15 +97,16 @@ const CSS = `
 .s-advert a,.s-advert .s-adimg{display:block}
 .s-advert img{width:100%;max-height:200px;object-fit:cover;border-radius:14px}
 
-.s-gallery{background:#0a0a80;padding:26px 0 30px;overflow:hidden}
-.s-gallery h2{color:#fff;font-size:1.05rem;margin:0 0 4px}
-.s-gallery .s-wrap>p{color:#b9c0ee;font-size:.9rem;margin-bottom:16px}
-.s-marquee{position:relative;width:100%;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
-.s-track{display:flex;gap:16px;width:max-content;animation:s-scroll 60s linear infinite}
-.s-marquee:hover .s-track{animation-play-state:paused}
-.s-slide{width:300px;flex:0 0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.25)}
-.s-slide img{width:300px;height:200px;object-fit:cover}
-.s-slide figcaption{padding:12px 14px;font-size:.86rem;color:var(--ink);line-height:1.4}
+.s-metro{background:#05053a;padding:30px 0 34px;overflow:hidden}
+.s-metro h2{color:#fff;font-size:1.1rem;margin:0 0 3px}
+.s-metro .s-wrap>p{color:#9aa2e0;font-size:.9rem;margin-bottom:18px}
+.s-marquee{position:relative;width:100%;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent);mask-image:linear-gradient(90deg,transparent,#000 3%,#000 97%,transparent)}
+.s-mtrack{display:grid;grid-auto-flow:column dense;grid-template-rows:repeat(2,160px);grid-auto-columns:160px;gap:10px;width:max-content;animation:s-scroll 70s linear infinite}
+.s-metro:hover .s-mtrack{animation-play-state:paused}
+.s-tile{position:relative;overflow:hidden;border-radius:4px;background:#0a0a80}
+.s-tile.big{grid-row:span 2;grid-column:span 2}
+.s-tile img{width:100%;height:100%;object-fit:cover}
+.s-tile .s-cap{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(0,0,60,.92));color:#fff;padding:26px 12px 10px;font-size:.82rem;font-weight:600;line-height:1.3}
 @keyframes s-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 
 .savan-site section{padding:56px 0}
