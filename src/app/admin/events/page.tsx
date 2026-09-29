@@ -37,8 +37,14 @@ export default async function EventsPage() {
                   {' · '}{ev.template_type}
                   {ev.organisation ? ` · ${ev.organisation.name}` : ''}
                 </div>
-                <div className="flex items-center gap-3 mt-1.5">
-                  <span className={`badge-${ev.status}`}>{ev.status}</span>
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">
+                    {ev.status === 'completed' ? 'Certificates issued' : ev.status}
+                  </span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    ev.registration_open ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {ev.registration_open ? 'Registration open' : 'Registration closed'}
+                  </span>
                   <span className="text-xs text-gray-400 flex items-center gap-1">
                     <Users className="w-3 h-3" />{ev.participant_count} participants
                   </span>
