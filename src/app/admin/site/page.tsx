@@ -1,9 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Globe, Megaphone, Newspaper, Image as ImageIcon, Plus, Trash2, Pencil, Sparkles } from 'lucide-react'
+import { Globe, Megaphone, Newspaper, Image as ImageIcon, Plus, Trash2, Pencil, Sparkles, Building2 } from 'lucide-react'
 
-type Tab = 'adverts' | 'blog' | 'photos' | 'hero'
+type Tab = 'adverts' | 'blog' | 'photos' | 'hero' | 'orgs'
 const slugify = (s: string) =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 80)
 
@@ -41,6 +41,7 @@ export default function AdminSitePage() {
     { id: 'adverts', label: 'Adverts', icon: Megaphone },
     { id: 'blog', label: 'Blog', icon: Newspaper },
     { id: 'photos', label: 'Photos', icon: ImageIcon },
+    { id: 'orgs', label: 'Organisations', icon: Building2 },
   ]
 
   return (
@@ -61,6 +62,114 @@ export default function AdminSitePage() {
       {tab === 'adverts' && <Adverts />}
       {tab === 'blog' && <Blog />}
       {tab === 'photos' && <Photos />}
+      {tab === 'orgs' && <Orgs />}
+    </div>
+  )
+}
+
+/* ---------------- Organisations ---------------- */
+interface Org { id: string; name: string; logo_url: string | null; mono: string | null; sort: number; active: boolean }
+const O_BLANK = { name: '', logo_url: '', mono: '', sort: 0, active: true }
+
+function Orgs() {
+  const [rows, setRows] = useState<Org[]>([])
+  const [show, setShow] = useState(false)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [form, setForm] = useState({ ...O_BLANK })
+  const [busy, setBusy] = useState(false); const [msg, setMsg] = useState(''); const [err, setErr] = useState('')
+
+  async function load() {
+    const { data } = await createClient().from('site_orgs').select('*').order('sort').order('created_at', { ascending: false })
+    setRows((data as any) ?? [])
+  }
+  useEffect(() => { load() }, [])
+  const set = (k: keyof typeof form, v: any) => setForm(f => ({ ...f, [k]: v }))
+  const reset = () => { setForm({ ...O_BLANK }); setEditId(null) }
+
+  async function onImg(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return
+    setBusy(true); setErr('')
+    const { url, error } = await uploadImage('orgs', file); setBusy(false)
+    if (error) { setErr(error); return }
+    set('logo_url', url); setMsg('Logo uploaded — remember to Save.')
+  }
+  async function save() {
+    if (!form.name.trim()) { setErr('A name is required.'); return }
+    setBusy(true); setErr(''); setMsg('')
+    const payload: any = {
+      name: form.name.trim(), logo_url: form.logo_url || null,
+      mono: form.mono.trim() || null, sort: form.sort || 0, active: form.active,
+    }
+    const s = createClient()
+    const { error } = editId
+      ? await s.from('site_orgs').update(payload).eq('id', editId)
+      : await s.from('site_orgs').insert(payload)
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    setShow(false); reset(); setMsg('Organisation saved.'); load()
+  }
+  async function remove(id: string) {
+    if (!confirm('Delete this organisation?')) return
+    const { error } = await createClient().from('site_orgs').delete().eq('id', id)
+    if (error) { setErr(error.message); return }
+    load()
+  }
+  function startEdit(o: Org) {
+    setEditId(o.id)
+    setForm({ name: o.name, logo_url: o.logo_url || '', mono: o.mono || '', sort: o.sort, active: o.active })
+    setShow(true); setMsg(''); setErr('')
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-sm text-gray-500">The scrolling partner strip on the homepage. Upload a logo, or leave it blank to show the short monogram.</p>
+        <button onClick={() => { reset(); setShow(true); setMsg(''); setErr('') }} className="btn-primary flex items-center gap-2 flex-shrink-0"><Plus className="w-4 h-4" />New org</button>
+      </div>
+      {msg && <p className="text-sm text-green-700 mb-3">{msg}</p>}
+      {err && <p className="text-sm text-red-600 mb-3">{err}</p>}
+
+      {show && (
+        <div className="card mb-6 space-y-4">
+          <h3 className="font-semibold text-gray-900">{editId ? 'Edit organisation' : 'New organisation'}</h3>
+          <div><label className="label">Name *</label>
+            <input className="input" value={form.name} onChange={e => set('name', e.target.value)} placeholder="e.g. University of Benin" /></div>
+          <div><label className="label">Logo <span className="text-gray-400">(transparent PNG works best)</span></label>
+            <input type="file" accept="image/*" className="input text-sm py-1.5" onChange={onImg} />
+            {form.logo_url && <img src={form.logo_url} alt="" className="h-16 mt-2 rounded border border-gray-100 object-contain bg-white p-1" />}</div>
+          <div><label className="label">Monogram <span className="text-gray-400">(shown if no logo, e.g. UNIBEN)</span></label>
+            <input className="input w-40" value={form.mono} onChange={e => set('mono', e.target.value)} maxLength={8} /></div>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={e => set('active', e.target.checked)} />Active</label>
+            <label className="flex items-center gap-2 text-sm">Order <input type="number" className="input w-20 py-1" value={form.sort} onChange={e => set('sort', +e.target.value || 0)} /></label>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={save} disabled={busy} className="btn-primary px-6">{busy ? 'Saving…' : 'Save'}</button>
+            <button onClick={() => { setShow(false); reset() }} className="btn-secondary px-6">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {rows.map(o => (
+          <div key={o.id} className="card flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {o.logo_url
+                ? <img src={o.logo_url} alt="" className="w-11 h-11 rounded-full object-contain bg-white border border-gray-100 p-1 flex-shrink-0" />
+                : <span className="w-11 h-11 rounded-full bg-[#000066] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">{o.mono || '—'}</span>}
+              <div className="min-w-0">
+                <p className="font-medium text-gray-900 truncate">{o.name}</p>
+                <p className="text-xs mt-0.5"><span className={o.active ? 'text-green-700' : 'text-gray-400'}>{o.active ? 'Active' : 'Hidden'}</span> · #{o.sort}{o.logo_url ? ' · logo' : ' · monogram'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0 text-xs">
+              <button onClick={() => startEdit(o)} className="inline-flex items-center gap-1 text-[#000066] hover:underline"><Pencil className="w-3.5 h-3.5" />Edit</button>
+              <button onClick={() => remove(o.id)} className="text-gray-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+            </div>
+          </div>
+        ))}
+        {!rows.length && <div className="card text-center py-10 text-gray-400 text-sm">No organisations yet.</div>}
+      </div>
     </div>
   )
 }
