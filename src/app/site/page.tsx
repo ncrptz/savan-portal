@@ -1,13 +1,12 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { SAVAN_LOGO, UNIBEN_LOGO, UBTH_LOGO, HERO_BG } from '@/lib/site-assets'
+import { UNIBEN_LOGO, UBTH_LOGO, HERO_BG } from '@/lib/site-assets'
 
 export const dynamic = 'force-dynamic'
 
 const PORTAL = 'https://verify.savan-ngo.org'
 
-const ORGS: { mono: string; name: string; logo?: string }[] = [
-  { mono: 'SAVAN', name: 'Save Accident Victims Assoc.', logo: SAVAN_LOGO },
+const DEFAULT_ORGS: { mono: string; name: string; logo?: string }[] = [
   { mono: 'UNIBEN', name: 'University of Benin', logo: UNIBEN_LOGO },
   { mono: 'UBTH', name: 'UofB Teaching Hospital', logo: UBTH_LOGO },
   { mono: 'EDSMA', name: 'Edo State' },
@@ -23,12 +22,13 @@ const fmt = (d: string | null) =>
 
 export default async function SiteHome() {
   const supabase = await createClient()
-  const [{ data: adverts }, { data: photos }, { data: posts }, { data: cfg }] = await Promise.all([
+  const [{ data: adverts }, { data: photos }, { data: posts }, { data: cfg }, { data: orgRows }] = await Promise.all([
     supabase.from('site_adverts').select('id,title,image_url,link_url').order('sort'),
     supabase.from('site_photos').select('id,image_url,caption').order('sort'),
     supabase.from('blog_posts').select('id,slug,title,excerpt,cover_url,published_at')
       .eq('status', 'published').order('published_at', { ascending: false }).limit(3),
     supabase.from('main_site').select('hero_url,hero_title,hero_subtitle').eq('id', true).single(),
+    supabase.from('site_orgs').select('name,logo_url,mono').order('sort'),
   ])
   const heroBg = (cfg as any)?.hero_url || HERO_BG
   const heroTitle = (cfg as any)?.hero_title || 'Saving lives before the hospital.'
@@ -37,7 +37,10 @@ export default async function SiteHome() {
   const advert = (adverts as any[])?.[0]
   const pics = (photos as any[]) ?? []
   const news = (posts as any[]) ?? []
-  const orgTrack = [...ORGS, ...ORGS]
+  const orgs = ((orgRows as any[])?.length
+    ? (orgRows as any[]).map(o => ({ name: o.name, mono: o.mono || '', logo: o.logo_url || undefined }))
+    : DEFAULT_ORGS)
+  const orgTrack = [...orgs, ...orgs]
   const picTrack = [...pics, ...pics]
 
   return (
