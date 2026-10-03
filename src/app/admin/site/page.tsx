@@ -1,9 +1,9 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Globe, Megaphone, Newspaper, Image as ImageIcon, Plus, Trash2, Pencil, Sparkles, Building2 } from 'lucide-react'
+import { Globe, Megaphone, Newspaper, Image as ImageIcon, Plus, Trash2, Pencil, Sparkles, Building2, Video as VideoIcon } from 'lucide-react'
 
-type Tab = 'adverts' | 'blog' | 'photos' | 'hero' | 'orgs'
+type Tab = 'adverts' | 'blog' | 'photos' | 'hero' | 'orgs' | 'video'
 const slugify = (s: string) =>
   s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 80)
 
@@ -38,6 +38,7 @@ export default function AdminSitePage() {
 
   const tabs: { id: Tab; label: string; icon: any }[] = [
     { id: 'hero', label: 'Hero', icon: Sparkles },
+    { id: 'video', label: 'Video', icon: VideoIcon },
     { id: 'adverts', label: 'Adverts', icon: Megaphone },
     { id: 'blog', label: 'Blog', icon: Newspaper },
     { id: 'photos', label: 'Photos', icon: ImageIcon },
@@ -59,6 +60,7 @@ export default function AdminSitePage() {
       </div>
 
       {tab === 'hero' && <Hero />}
+      {tab === 'video' && <Video />}
       {tab === 'adverts' && <Adverts />}
       {tab === 'blog' && <Blog />}
       {tab === 'photos' && <Photos />}
@@ -228,6 +230,82 @@ function Hero() {
         <textarea className="input" rows={3} value={form.hero_subtitle} onChange={e => set('hero_subtitle', e.target.value)} placeholder="SAVAN improves the survival of accident and emergency victims…" />
       </div>
       <button onClick={save} disabled={busy} className="btn-primary px-6">{busy ? 'Saving…' : 'Save hero'}</button>
+    </div>
+  )
+}
+
+/* ---------------- Video ---------------- */
+function Video() {
+  const [form, setForm] = useState({ video_url: '', video_title: '', video_active: false, video_autoplay: false })
+  const [busy, setBusy] = useState(false); const [msg, setMsg] = useState(''); const [err, setErr] = useState('')
+
+  useEffect(() => {
+    createClient().from('main_site').select('video_url,video_title,video_active,video_autoplay').eq('id', true).single()
+      .then(({ data }) => {
+        if (data) setForm({
+          video_url: data.video_url || '', video_title: data.video_title || '',
+          video_active: !!data.video_active, video_autoplay: !!data.video_autoplay,
+        })
+      })
+  }, [])
+  const set = (k: keyof typeof form, v: any) => setForm(f => ({ ...f, [k]: v }))
+
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return
+    setBusy(true); setErr('')
+    const { url, error } = await uploadImage('video', file); setBusy(false)
+    if (error) { setErr(error); return }
+    set('video_url', url || ''); setMsg('Video uploaded — remember to Save.')
+  }
+  async function save() {
+    setBusy(true); setErr(''); setMsg('')
+    const { error } = await createClient().from('main_site').upsert({
+      id: true,
+      video_url: form.video_url.trim() || null,
+      video_title: form.video_title.trim() || null,
+      video_active: form.video_active,
+      video_autoplay: form.video_autoplay,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' })
+    setBusy(false)
+    if (error) { setErr(error.message); return }
+    setMsg('Video saved. The homepage updates on its next load.')
+  }
+
+  return (
+    <div className="card space-y-4 max-w-xl">
+      <p className="text-sm text-gray-500">A video section on the homepage. Paste a YouTube/Vimeo link, or upload a video file.</p>
+      {msg && <p className="text-sm text-green-700">{msg}</p>}
+      {err && <p className="text-sm text-red-600">{err}</p>}
+
+      <label className="flex items-center gap-2 text-sm font-medium">
+        <input type="checkbox" checked={form.video_active} onChange={e => set('video_active', e.target.checked)} />
+        Show the video on the homepage
+      </label>
+
+      <div>
+        <label className="label">Video link <span className="text-gray-400">(YouTube or Vimeo)</span></label>
+        <input className="input" value={form.video_url} onChange={e => set('video_url', e.target.value)} placeholder="https://youtu.be/… or https://vimeo.com/…" />
+      </div>
+
+      <div>
+        <label className="label">…or upload a video file <span className="text-gray-400">(MP4)</span></label>
+        <input type="file" accept="video/*" className="input text-sm py-1.5" onChange={onFile} />
+        {form.video_url && !/youtu|vimeo/.test(form.video_url) && <p className="text-xs text-green-700 mt-1">File set ✓</p>}
+        <p className="text-xs text-gray-400 mt-1">Keep uploads small (ideally under ~50MB). For long videos, a YouTube/Vimeo link is better.</p>
+      </div>
+
+      <div>
+        <label className="label">Section title</label>
+        <input className="input" value={form.video_title} onChange={e => set('video_title', e.target.value)} placeholder="Watch SAVAN in action" />
+      </div>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={form.video_autoplay} onChange={e => set('video_autoplay', e.target.checked)} />
+        Autoplay <span className="text-gray-400">(plays muted on load; viewers can unmute)</span>
+      </label>
+
+      <button onClick={save} disabled={busy} className="btn-primary px-6">{busy ? 'Saving…' : 'Save video'}</button>
     </div>
   )
 }
