@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { UNIBEN_LOGO, UBTH_LOGO, HERO_BG } from '@/lib/site-assets'
+import { embedUrl } from '@/lib/embed'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,13 +28,18 @@ export default async function SiteHome() {
     supabase.from('site_photos').select('id,image_url,caption').order('sort'),
     supabase.from('blog_posts').select('id,slug,title,excerpt,cover_url,published_at')
       .eq('status', 'published').order('published_at', { ascending: false }).limit(3),
-    supabase.from('main_site').select('hero_url,hero_title,hero_subtitle').eq('id', true).single(),
+    supabase.from('main_site').select('hero_url,hero_title,hero_subtitle,video_url,video_title,video_active,video_autoplay').eq('id', true).single(),
     supabase.from('site_orgs').select('name,logo_url,mono').order('sort'),
   ])
   const heroBg = (cfg as any)?.hero_url || HERO_BG
   const heroTitle = (cfg as any)?.hero_title || 'Saving lives before the hospital.'
   const heroSubtitle = (cfg as any)?.hero_subtitle ||
     'SAVAN improves the survival of road-traffic accident and critical-emergency victims across Nigeria — through pre-hospital care and nationwide Basic Life Support (BLS) & Automated External Defibrillation (AED) training.'
+  const videoUrl = (cfg as any)?.video_url as string | undefined
+  const videoOn = !!(cfg as any)?.video_active && !!videoUrl
+  const videoTitle = (cfg as any)?.video_title || 'Watch SAVAN in action'
+  const videoAutoplay = !!(cfg as any)?.video_autoplay
+  const videoEmbed = videoUrl ? embedUrl(videoUrl) : null
   const advert = (adverts as any[])?.[0]
   const pics = (photos as any[]) ?? []
   const news = (posts as any[]) ?? []
@@ -96,6 +102,32 @@ export default async function SiteHome() {
             })}
           </div></div>
         </div>
+      )}
+
+      {/* Video (from CMS) */}
+      {videoOn && (
+        <section className="s-videowrap">
+          <div className="s-wrap">
+            <span className="s-eyebrow">Watch</span>
+            <h2 className="s-h2">{videoTitle}</h2>
+            <div className="s-video">
+              {videoEmbed ? (
+                <iframe
+                  src={`${videoEmbed}${videoAutoplay ? (videoEmbed.includes('?') ? '&' : '?') + 'autoplay=1&mute=1' : ''}`}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <video
+                  src={videoUrl}
+                  controls
+                  playsInline
+                  {...(videoAutoplay ? { autoPlay: true, muted: true, loop: true } : {})}
+                />
+              )}
+            </div>
+          </div>
+        </section>
       )}
 
       {/* About */}
