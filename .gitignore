@@ -1,0 +1,25 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+
+# build / typescript
+*.tsbuildinfo
+
+# env — never commit secrets (Supabase service role, CERT_SIGNING_SECRET, etc.)
+.env
+.env.*
+!.env.example
+
+# vercel
+.vercel
+
+# misc
+.DS_Store
+npm-debug.log*
+yarn-error.log*
