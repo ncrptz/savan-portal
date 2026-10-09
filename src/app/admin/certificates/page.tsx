@@ -2,7 +2,7 @@
 import { formatCertDate } from '@/lib/date'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Award, ExternalLink } from 'lucide-react'
+import { Award, Camera, ExternalLink } from 'lucide-react'
 
 interface Cert {
   id: string
@@ -10,6 +10,7 @@ interface Cert {
   trainee_name: string
   issued_at: string | null
   pdf_url: string | null
+  photo_url: string | null
   status: string
   event: { title: string } | null
 }
@@ -23,6 +24,9 @@ export default function CertificatesPage() {
   const [reason, setReason] = useState('')
   const [busy, setBusy]     = useState(false)
   const [err, setErr]       = useState('')
+  const [photoBusy, setPhotoBusy] = useState<string | null>(null)   // cert id being re-rendered
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null)
+  const [loadedAt, setLoadedAt] = useState(0)                      // cache-busts photo thumbnails
 
   async function load() {
     const supabase = createClient()
@@ -33,9 +37,10 @@ export default function CertificatesPage() {
     }
     const { data } = await supabase
       .from('certificates')
-      .select('id, cert_id, trainee_name, issued_at, pdf_url, status, event:training_events(title)')
+      .select('id, cert_id, trainee_name, issued_at, pdf_url, photo_url, status, event:training_events(title)')
       .order('issued_at', { ascending: false })
     setCerts((data as any) ?? [])
+    setLoadedAt(Date.now())
     setLoading(false)
   }
   useEffect(() => { load() }, [])
@@ -56,12 +61,46 @@ export default function CertificatesPage() {
     setModal(null); await load()
   }
 
+  // Re-render an issued certificate with a passport photo. The certificate ID,
+  // QR link and issue date are kept; only the PDF and the photo snapshot change.
+  async function attachPhoto(cert: Cert, file: File) {
+    setPhotoBusy(cert.id); setNotice(null)
+    const fd = new FormData()
+    fd.append('cert_id', cert.id)
+    fd.append('photo', file)
+    try {
+      const res  = await fetch('/api/certificates/rerender', { method: 'POST', body: fd })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(body.error || `Failed (${res.status})`)
+      setNotice({ ok: true, text: `${cert.cert_id} re-issued with the new photo.` })
+      await load()
+    } catch (e: any) {
+      setNotice({ ok: false, text: `${cert.cert_id}: ${e.message}` })
+    } finally {
+      setPhotoBusy(null)
+    }
+  }
+
   const statusBadge = (s: string) =>
     s === 'active'
       ? <span className="text-green-700 text-xs font-medium">Valid</span>
       : s === 'reversal_pending'
         ? <span className="text-amber-600 text-xs font-medium">Reversal pending</span>
         : <span className="text-red-600 text-xs font-medium">Revoked</span>
+
+  function photoControl(c: Cert) {
+    if (c.status !== 'active') return null
+    const working = photoBusy === c.id
+    return (
+      <label className={`inline-flex items-center gap-1 text-xs cursor-pointer ${working ? 'text-gray-400' : 'text-[#000066] hover:underline'}`}
+             title="Re-issue this certificate with a passport photo (same ID and QR link)">
+        <Camera className="w-3 h-3" />
+        {working ? 'Rendering…' : c.photo_url ? 'Replace photo' : 'Add photo'}
+        <input type="file" accept="image/*" className="hidden" disabled={!!photoBusy}
+          onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) attachPhoto(c, f) }} />
+      </label>
+    )
+  }
 
   function action(c: Cert) {
     if (c.status === 'active')
@@ -88,6 +127,12 @@ export default function CertificatesPage() {
         <p className="text-sm text-gray-500 mt-0.5">{certs.length} issued</p>
       </div>
 
+      {notice && (
+        <div className={`mb-4 rounded-lg px-4 py-3 text-sm ${notice.ok ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-700'}`}>
+          {notice.text}
+        </div>
+      )}
+
       <div className="card p-0 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -99,6 +144,7 @@ export default function CertificatesPage() {
                 <th className="px-4 py-3 font-medium">Issued</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">PDF</th>
+                <th className="px-4 py-3 font-medium">Photo</th>
                 <th className="px-4 py-3 font-medium text-right">Action</th>
               </tr>
             </thead>
@@ -121,6 +167,14 @@ export default function CertificatesPage() {
                           Open <ExternalLink className="w-3 h-3" />
                         </a>
                       : <span className="text-gray-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <span className="inline-flex items-center gap-2">
+                      {c.photo_url
+                        ? <img src={`${c.photo_url}?t=${loadedAt}`} alt="" className="w-7 h-7 rounded object-cover border border-gray-200" />
+                        : <span className="w-7 h-7 rounded bg-gray-100 inline-block" />}
+                      {photoControl(c)}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-right">{action(c)}</td>
                 </tr>
