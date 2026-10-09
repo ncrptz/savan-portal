@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Calendar, Users, Award, Pencil, FileText, Plus } from 'lucide-react'
 import RegistrantsPanel from '@/components/admin/RegistrantsPanel'
+import CertPhotoButton from '@/components/admin/CertPhotoButton'
 
 export default async function EventDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient()
@@ -16,7 +17,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
 
   const { data: certs } = await supabase
     .from('certificates')
-    .select('id, cert_id, trainee_name, issued_at, pdf_url, revoked')
+    .select('id, cert_id, trainee_name, issued_at, pdf_url, photo_url, revoked')
     .eq('event_id', params.id)
     .order('cert_id')
 
@@ -111,6 +112,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
                   <th className="text-left py-2 px-3 font-medium text-gray-500">Recipient</th>
                   <th className="text-left py-2 px-3 font-medium text-gray-500">Issued</th>
                   <th className="text-left py-2 px-3 font-medium text-gray-500">Status</th>
+                  <th className="text-left py-2 px-3 font-medium text-gray-500">Photo</th>
                   <th className="text-left py-2 px-3 font-medium text-gray-500">Actions</th>
                 </tr>
               </thead>
@@ -127,6 +129,12 @@ export default async function EventDetailPage({ params }: { params: { id: string
                         ? <span className="badge-revoked">Revoked</span>
                         : <span className="badge-active">Valid</span>
                       }
+                    </td>
+                    <td className="py-2 px-3 whitespace-nowrap">
+                      {c.revoked
+                        ? <span className="text-gray-300 text-xs">—</span>
+                        : <CertPhotoButton certId={c.id} certLabel={c.cert_id}
+                            hasPhoto={!!c.photo_url} photoUrl={c.photo_url} />}
                     </td>
                     <td className="py-2 px-3">
                       <div className="flex gap-3">
